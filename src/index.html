@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hello Gitty</title>
   <link rel="icon" type="image/png" href="favicon.png" />
-  <link rel="stylesheet" href="styles.css?v=20260817233000" />
+  <link rel="stylesheet" href="styles.css?v=20260829001300" />
   <script>
     // 仅开发模式(http://localhost:1421)生效:检测源文件变更后自动刷新窗口
     if (location.protocol === "http:") {
@@ -55,11 +55,15 @@
       <ul id="repo-list"></ul>
       <div id="sidebar-empty" class="sidebar-empty hidden">暂无项目，点击 + 添加</div>
       <div class="sidebar-footer">
-        <button id="btn-pin" class="icon-btn" title="窗口置顶">
+        <button id="btn-pin" class="icon-btn" data-tip="窗口置顶">
           <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3Z"/></svg>
         </button>
-        <button id="btn-settings" class="icon-btn" title="设置">
+        <button id="btn-settings" class="icon-btn" data-tip="设置">
           <svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 .1-1 7.6 7.6 0 0 0-.1-1l2.1-1.6a.5.5 0 0 0 .1-.7l-2-3.4a.5.5 0 0 0-.6-.2l-2.5 1a7.7 7.7 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.5H9.2a.5.5 0 0 0-.5.5l-.4 2.6a7.7 7.7 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.4a.5.5 0 0 0 .1.7L3.6 11a7.6 7.6 0 0 0-.1 1 7.6 7.6 0 0 0 .1 1l-2.1 1.6a.5.5 0 0 0-.1.7l2 3.4c.1.3.4.4.6.2l2.5-1a7.7 7.7 0 0 0 1.7 1l.4 2.6c0 .3.3.5.5.5h4c.3 0 .5-.2.5-.5l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.5 1c.3.1.6 0 .6-.2l2-3.4a.5.5 0 0 0-.1-.7L19.4 13ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
+        </button>
+        <!-- 筛选按钮:实心漏斗,单独靠右(margin-left:auto 推到行尾,见 styles.css) -->
+        <button id="btn-dirty-only" class="icon-btn" data-tip="只显示待提交项目">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
         </button>
       </div>
       <div id="sidebar-resizer" title="拖动调整侧栏宽度"></div>
@@ -146,7 +150,7 @@
         <div id="dashboard" class="hidden">
           <div class="dash-head">
             <span class="dash-title">
-              <img class="dash-title-icon" src="favicon.png" alt="" draggable="false" />
+              <img class="dash-title-icon" src="favicon.png" alt="" width="24" height="24" draggable="false" />
               Hello Gitty
             </span>
             <div class="dash-head-actions">
@@ -156,7 +160,7 @@
               </button>
               <div class="more-wrap">
                 <button id="btn-dash-more" class="icon-btn" title="更多操作">
-                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
                 </button>
                 <div id="dash-more-menu" class="more-menu hidden">
                   <button id="btn-dash-close-all">关闭所有项目</button>
@@ -357,27 +361,69 @@
   <!-- 设置 -->
   <div class="overlay hidden" id="dlg-settings">
     <div class="dialog settings-dialog">
-      <div class="settings-title">系统设置</div>
+      <div class="settings-title">
+        <span>系统设置</span>
+        <button class="icon-btn" id="btn-settings-close" title="关闭" aria-label="关闭">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M18 6 6 18"/><path d="M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
       <div class="settings-main">
         <div class="settings-nav">
-          <button class="settings-nav-item active" data-tab="ai">AI 模型配置</button>
+          <button class="settings-nav-item active" data-tab="appearance">主题外观</button>
+          <button class="settings-nav-item" data-tab="ai">AI 模型配置</button>
           <button class="settings-nav-item" data-tab="commit">提交推送配置</button>
           <button class="settings-nav-item" data-tab="about">关于与更新</button>
         </div>
         <div class="settings-body">
-          <div class="settings-tab" data-tab="ai">
+          <div class="settings-tab" data-tab="appearance">
             <label class="field">
-              <span>API 地址</span>
-              <input id="set-base-url" type="text" placeholder="https://api.deepseek.com" />
+              <span>主题</span>
+              <select id="set-theme">
+                <option value="dark">深色</option>
+                <option value="light">浅色</option>
+              </select>
             </label>
+          </div>
+          <div class="settings-tab hidden" data-tab="ai">
             <label class="field">
-              <span>API Key</span>
-              <input id="set-api-key" type="password" placeholder="sk-…" />
+              <span>调用方式</span>
+              <select id="set-ai-mode">
+                <option value="api">API key</option>
+                <option value="cli">本地 CLI 工具</option>
+              </select>
             </label>
-            <label class="field">
-              <span>模型</span>
-              <input id="set-model" type="text" placeholder="deepseek-v4-flash" />
-            </label>
+            <div id="ai-api-fields">
+              <label class="field">
+                <span>API 地址</span>
+                <input id="set-base-url" type="text" placeholder="https://api.deepseek.com" />
+              </label>
+              <label class="field">
+                <span>API Key</span>
+                <input id="set-api-key" type="password" placeholder="sk-…" />
+              </label>
+              <label class="field">
+                <span>模型</span>
+                <input id="set-model" type="text" placeholder="deepseek-v4-flash" />
+              </label>
+            </div>
+            <div id="ai-cli-fields" class="hidden">
+              <div class="field">
+                <span class="field-row">
+                  本机 CLI 工具
+                  <button class="mini-btn" id="btn-cli-rescan">重新扫描</button>
+                </span>
+                <select id="cli-tool-select" class="cli-select">
+                  <option value="">正在扫描本机 CLI 工具…</option>
+                </select>
+              </div>
+              <label class="field">
+                <span>模型</span>
+                <input id="set-cli-model" list="cli-model-list" placeholder="留空使用该 CLI 的默认模型" />
+                <datalist id="cli-model-list"></datalist>
+              </label>
+            </div>
           </div>
           <div class="settings-tab hidden" data-tab="commit">
             <label class="field">
@@ -487,6 +533,9 @@
   <!-- 运行命令「⋯」菜单(隐藏命令列表,点击直接运行) -->
   <div id="run-more-menu" class="ctx-menu hidden"></div>
 
-  <script type="module" src="main.js?v=20260817234000"></script>
+  <!-- 全局自定义 tooltip 浮层(悬停 [data-tip] 元素显示,见 js/tooltip.js) -->
+  <div id="tooltip" class="tooltip hidden"></div>
+
+  <script type="module" src="main.js?v=20260829000000"></script>
 </body>
 </html>

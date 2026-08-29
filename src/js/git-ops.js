@@ -2,6 +2,7 @@
    窗口置顶/分支切换 */
 import { $, invoke, listen, toast, setBusy, setButtonLoading, runBusy, settings, repo, setLastShipStatus } from "./state.js";
 import { refresh, refreshShipButtons } from "./panel.js";
+import { refreshTip } from "./tooltip.js";
 
 /* ===== 暂存 / 丢弃 ===== */
 export async function stageAll(stage) {
@@ -104,9 +105,13 @@ async function onCommit() {
         : "没有可提交的更改", false);
       return;
     }
-    // 未配置 AI Key:直接进入手动填写面板,跳过 AI 调用(不再绕"AI 失败"的错误流程)
-    if (!(settings.ai.api_key || "").trim()) {
-      toast("未配置 AI API Key，可手动填写提交信息", false);
+    // 未配置 AI(无 API Key 且未选本地 CLI):直接进入手动填写面板,跳过 AI 调用
+    // (不再绕"AI 失败"的错误流程)
+    const aiReady = settings.ai.mode === "cli"
+      ? !!(settings.ai.cli_tool && settings.ai.cli_path)
+      : !!(settings.ai.api_key || "").trim();
+    if (!aiReady) {
+      toast("未配置 AI，可手动填写提交信息", false);
       showCommitResult(p, "", "手动填写提交信息");
       return;
     }
@@ -338,7 +343,8 @@ async function togglePin() {
   try {
     await invoke("window_set_always_on_top", { on: pinned });
     $("btn-pin").classList.toggle("active", pinned);
-    $("btn-pin").title = pinned ? "取消置顶" : "窗口置顶";
+    $("btn-pin").dataset.tip = pinned ? "取消置顶" : "窗口置顶";
+    refreshTip($("btn-pin")); // 悬停中置顶/取消:提示文案随状态就地更新
     toast(pinned ? "已置顶" : "已取消置顶", true);
   } catch (e) {
     pinned = !pinned; // 失败回滚状态

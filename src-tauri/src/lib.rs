@@ -1547,6 +1547,12 @@ async fn ai_resolve_conflicts(
     .await
 }
 
+/// 扫描本机已安装的 AI CLI 工具(PATH + 常见安装目录 + 登录 shell 探测),供设置页选择
+#[tauri::command]
+async fn ai_cli_scan() -> Vec<ai::CliToolInfo> {
+    ai::scan_cli_tools().await
+}
+
 /// 智能识别仓库的全部「运行服务器」命令候选(按优先级排序)
 #[tauri::command]
 async fn server_detect(repo: String) -> Vec<runner::DetectResult> {
@@ -1793,6 +1799,7 @@ pub fn run() {
             git_pull,
             git_fetch,
             git_finish_merge,
+            ai_cli_scan,
             git_history,
             git_refresh,
             watcher::repo_watch_start,

@@ -10,6 +10,15 @@ pub struct AiConfig {
     pub base_url: String,
     pub api_key: String,
     pub model: String,
+    /// AI 调用方式:"api" 直连 OpenAI 兼容接口(默认)/ "cli" 调用本地已安装的 AI CLI 工具
+    #[serde(default = "default_ai_mode")]
+    pub mode: String,
+    /// mode=cli 时选中的工具 id(见 CLI_TOOLS 表)
+    #[serde(default)]
+    pub cli_tool: String,
+    /// mode=cli 时工具可执行文件的绝对路径(来自扫描结果,免去每次调用重新探测)
+    #[serde(default)]
+    pub cli_path: String,
     /// 提交信息语言:"中文" 或 "英文"
     pub lang: String,
     /// 提交模式:"auto" 直接提交(AI 生成后自动提交) / "confirm" 生成后展示确认
@@ -21,6 +30,10 @@ pub struct AiConfig {
     /// 自定义提示词模板(占位符:{diff} {log} {lang})
     #[serde(default)]
     pub custom_prompt: String,
+}
+
+fn default_ai_mode() -> String {
+    "api".into()
 }
 
 fn default_commit_mode() -> String {
@@ -37,6 +50,9 @@ impl Default for AiConfig {
             base_url: "https://api.deepseek.com".into(),
             api_key: String::new(),
             model: "deepseek-v4-flash".into(),
+            mode: default_ai_mode(),
+            cli_tool: String::new(),
+            cli_path: String::new(),
             lang: "中文".into(),
             commit_mode: default_commit_mode(),
             prompt_preset: default_preset(),
@@ -105,7 +121,16 @@ pub fn render_template(template: &str, diff: &str, log_hint: &str, lang: &str) -
         .replace("{diff}", diff)
 }
 
-async fn chat(cfg: &AiConfig, system: &str, user: &str) -> Result<String, String> {
+/// AI 调用总入口:按配置分流到 OpenAI 兼容 API 或本地 CLI 工具
+async fn chat(cfg: &AiConfig, cwd: &str, system: &str, user: &str) -> Result<String, String> {
+    if cfg.mode == "cli" {
+        chat_via_cli(cfg, cwd, system, user).await
+    } else {
+        chat_via_api(cfg, system, user).await
+    }
+}
+
+async fn chat_via_api(cfg: &AiConfig, system: &str, user: &str) -> Result<String, String> {
     if cfg.api_key.trim().is_empty() {
         return Err("尚未配置 AI API Key，请先打开设置完成配置".into());
     }
@@ -160,6 +185,471 @@ fn clean_markdown(s: String) -> String {
     s.to_string()
 }
 
+/* ===== 本地 AI CLI 工具:扫描本机已安装的命令行 AI,并经其完成 AI 调用 ===== */
+
+/// 单个 CLI 工具的静态定义:如何找到它、如何以非交互方式调用
+struct CliToolDef {
+    id: &'static str,
+    /// 展示名
+    name: &'static str,
+    /// 可执行文件名(PATH 中检索用)
+    bin: &'static str,
+    /// stdin 提示词之前的固定参数(提示词一律经 stdin 传入,不受 argv 长度限制)
+    args: &'static [&'static str],
+    /// 模型参数;None = 不支持/位置参数特殊处理(如 ollama 的 run <model>)
+    model_flag: Option<&'static str>,
+    /// 模型输入建议(datalist);有列表子命令(list_args)的工具在扫描时动态覆盖
+    models: &'static [&'static str],
+    /// 工具自带的模型列表子命令参数(ollama list / crush models / opencode models):
+    /// 扫描时动态获取完整清单,保证与终端实际可用一致。
+    /// None = 工具未提供列表命令,只能用静态建议(CLI 的 -m 本身接受任意模型 ID)
+    list_args: Option<&'static [&'static str]>,
+    /// 判定「已配置」的凭据路径(相对 HOME,任一存在即视为已配置;空 = 装好即可用)
+    creds: &'static [&'static str],
+    /// 给用户的使用前提说明
+    hint: &'static str,
+}
+
+const CLI_TOOLS: &[CliToolDef] = &[
+    CliToolDef {
+        id: "claude",
+        name: "Claude Code",
+        bin: "claude",
+        args: &["-p"],
+        model_flag: Some("--model"),
+        // 别名集 = /model 选择器选项(取自 CLI 内置注册表);再附当前代完整模型 ID
+        models: &[
+            "default", "sonnet", "opus", "haiku", "opusplan",
+            "claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-4-5",
+        ],
+        list_args: None, // 无模型列表子命令
+        creds: &[".claude", ".claude.json"],
+        hint: "使用 Anthropic 账号登录后可用；模型可填别名(opus/sonnet/haiku/opusplan)或带日期后缀的完整模型 ID",
+    },
+    CliToolDef {
+        id: "codex",
+        name: "Codex CLI",
+        bin: "codex",
+        args: &["exec", "-"],
+        model_flag: Some("-m"),
+        // = CLI 内置模型目录(新) + 文档在列的历史版本,均可经 -m 调用
+        models: &[
+            "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
+            "gpt-5.5", "gpt-5.5-pro",
+            "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano",
+            "gpt-5.3-codex", "gpt-5.2", "gpt-5.2-codex",
+            "gpt-5.1-codex-max", "gpt-5.1-codex-mini",
+        ],
+        list_args: None, // 完整目录由 ChatGPT 后端按账号下发,CLI 无列表子命令
+        creds: &[".codex/auth.json"],
+        hint: "使用 ChatGPT 账号登录后可用；-m 亦可填账号目录内的任意模型 slug",
+    },
+    CliToolDef {
+        id: "gemini",
+        name: "Gemini CLI",
+        bin: "gemini",
+        args: &[],
+        model_flag: Some("-m"),
+        // CLI 支持的全部文本模型代系(取自 CLI 内置模型表,不含图像/实时等专用变体)
+        models: &[
+            "gemini-3.5-flash",
+            "gemini-3.1-pro", "gemini-3.1-pro-preview",
+            "gemini-3.1-flash-lite", "gemini-3.1-flash-lite-preview",
+            "gemini-3-pro-preview", "gemini-3-flash", "gemini-3-flash-preview",
+            "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite",
+        ],
+        list_args: None, // 可用模型由服务端按账号下发,CLI 无列表子命令
+        creds: &[".gemini/oauth_creds.json", ".gemini/settings.json"],
+        hint: "使用 Google 账号登录后可用",
+    },
+    CliToolDef {
+        id: "qwen",
+        name: "Qwen Code",
+        bin: "qwen",
+        args: &[],
+        model_flag: Some("-m"),
+        // coder 系列为 OAuth 免费额度模型,其余代系为 Model Studio API 模型(取自 CLI 内置模型表)
+        models: &[
+            "qwen3-coder-plus", "qwen3-coder-flash", "qwen3-coder-next",
+            "qwen3.8-max", "qwen3.7-max", "qwen3.7-plus",
+            "qwen3.6-plus", "qwen3.6-flash", "qwen3.5-plus", "qwen3-max",
+        ],
+        list_args: None, // 可用模型由服务端下发,CLI 无列表子命令
+        creds: &[".qwen/oauth_creds.json"],
+        hint: "使用 Qwen 账号登录后可用；coder 系列为免费额度模型",
+    },
+    CliToolDef {
+        id: "ollama",
+        name: "Ollama",
+        bin: "ollama",
+        args: &["run"],
+        model_flag: None,
+        models: &[],
+        list_args: Some(&["list"]),
+        creds: &[],
+        hint: "本地模型服务，无需联网；必须选择一个已拉取的模型",
+    },
+    CliToolDef {
+        id: "crush",
+        name: "Crush",
+        bin: "crush",
+        args: &["run"],
+        model_flag: Some("--model"),
+        models: &[],
+        list_args: Some(&["models"]),
+        creds: &[".config/crush/crush.json"],
+        hint: "模型填 provider/model(见建议列表),留空用其默认模型",
+    },
+    CliToolDef {
+        id: "opencode",
+        name: "OpenCode",
+        bin: "opencode",
+        args: &["run"],
+        model_flag: Some("-m"),
+        models: &[],
+        list_args: Some(&["models"]),
+        creds: &[".local/share/opencode/auth.json"],
+        hint: "模型格式为 provider/model，留空使用其默认模型",
+    },
+];
+
+fn tool_by_id(id: &str) -> Option<&'static CliToolDef> {
+    CLI_TOOLS.iter().find(|t| t.id == id)
+}
+
+/// 组装 CLI 命令行参数(不含程序路径与 stdin 提示词)
+fn cli_args(def: &CliToolDef, model: &str) -> Vec<String> {
+    let mut args: Vec<String> = def.args.iter().map(|s| s.to_string()).collect();
+    if def.id == "ollama" {
+        // ollama 的模型是位置参数:run <model> < stdin
+        if !model.is_empty() {
+            args.push(model.to_string());
+        }
+    } else if let Some(flag) = def.model_flag {
+        if !model.is_empty() {
+            args.push(flag.to_string());
+            args.push(model.to_string());
+        }
+    }
+    args
+}
+
+/// 扫描结果(返回给前端渲染选择)
+#[derive(Serialize, Clone)]
+pub struct CliToolInfo {
+    pub id: String,
+    pub name: String,
+    pub bin: String,
+    /// 找到的可执行文件绝对路径;未找到为空
+    pub path: String,
+    /// `--version` 输出首行(尽力而为)
+    pub version: String,
+    pub found: bool,
+    /// 已安装且凭据检测通过(ollama 需能列出模型)
+    pub ready: bool,
+    /// 模型建议(datalist)
+    pub models: Vec<String>,
+    pub hint: String,
+}
+
+/// 扫描本机已安装的 AI CLI 工具。检索顺序:进程 PATH → 常见安装目录
+/// (GUI 启动的应用 PATH 不含 Homebrew 等)→ 登录 shell(兼容 nvm 等仅在 profile 中配置的安装)
+pub async fn scan_cli_tools() -> Vec<CliToolInfo> {
+    let dirs = search_dirs();
+    let probes = CLI_TOOLS.iter().map(|def| probe_tool(def, &dirs));
+    futures_util::future::join_all(probes).await
+}
+
+async fn probe_tool(def: &CliToolDef, dirs: &[std::path::PathBuf]) -> CliToolInfo {
+    let mut info = CliToolInfo {
+        id: def.id.into(),
+        name: def.name.into(),
+        bin: def.bin.into(),
+        path: String::new(),
+        version: String::new(),
+        found: false,
+        ready: false,
+        models: def.models.iter().map(|s| s.to_string()).collect(),
+        hint: def.hint.into(),
+    };
+    let mut path = find_in_dirs(def.bin, dirs);
+    #[cfg(unix)]
+    if path.is_none() {
+        path = login_shell_which(def.bin).await;
+    }
+    let Some(p) = path else { return info };
+    info.found = true;
+    info.path = p.clone();
+
+    // 凭据检测:尽力而为(macOS 的 Keychain 类凭据文件探测不到也不影响实际可用)
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    let cred_ok = def.creds.is_empty() || home.as_ref().is_some_and(|h| {
+        def.creds.iter().any(|c| h.join(c).exists())
+    });
+
+    // 模型清单:有列表子命令的工具(ollama list / crush models / opencode models)
+    // 动态获取完整列表,与终端一致;失败或为空时回落静态建议。
+    // ollama 额外以「能列出模型」作为服务就绪依据,其余工具按凭据检测
+    let fetched = match def.list_args {
+        Some(list_args) => list_models(&p, list_args).await.filter(|m| !m.is_empty()),
+        None => None,
+    };
+    match fetched {
+        Some(models) => info.models = models,
+        None if def.id == "ollama" => info.models.clear(), // 服务不可达:不给建议
+        None => {}
+    }
+    info.ready = if def.id == "ollama" {
+        !info.models.is_empty()
+    } else {
+        cred_ok
+    };
+    info.version = probe_version(&p).await;
+    info
+}
+
+/// 追加的检索目录:补齐 GUI 启动时缺失的 PATH(Homebrew/用户级安装)
+fn search_dirs() -> Vec<std::path::PathBuf> {
+    let mut dirs: Vec<std::path::PathBuf> = Vec::new();
+    if let Some(pd) = std::env::var_os("PATH") {
+        dirs.extend(std::env::split_paths(&pd));
+    }
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(std::path::PathBuf::from);
+    if let Some(h) = &home {
+        for rel in ["bin", ".local/bin", ".cargo/bin"] {
+            dirs.push(h.join(rel));
+        }
+    }
+    for d in ["/opt/homebrew/bin", "/usr/local/bin"] {
+        dirs.push(std::path::PathBuf::from(d));
+    }
+    // 去重(保持首次出现顺序)
+    let mut seen = std::collections::HashSet::new();
+    dirs.retain(|d| !d.as_os_str().is_empty() && seen.insert(d.clone()));
+    dirs
+}
+
+/// 在候选目录中查找可执行文件
+fn find_in_dirs(bin: &str, dirs: &[std::path::PathBuf]) -> Option<String> {
+    for dir in dirs {
+        let cand = dir.join(bin);
+        if is_executable_file(&cand) {
+            return Some(cand.to_string_lossy().into_owned());
+        }
+    }
+    None
+}
+
+fn is_executable_file(p: &std::path::Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        p.is_file()
+            && p.metadata()
+                .map(|m| m.permissions().mode() & 0o111 != 0)
+                .unwrap_or(false)
+    }
+    #[cfg(not(unix))]
+    {
+        p.is_file()
+    }
+}
+
+/// 经登录 shell 探测命令位置:`$SHELL -l -c 'command -v <bin>'`,
+/// 兼容只在 shell profile 里配置 PATH 的安装方式(nvm/volta 等)。限时防卡。
+#[cfg(unix)]
+async fn login_shell_which(bin: &str) -> Option<String> {
+    use std::process::Stdio;
+    use tokio::process::Command;
+    let shell = std::env::var("SHELL").ok().filter(|s| !s.trim().is_empty())?;
+    let out = tokio::time::timeout(
+        std::time::Duration::from_secs(4),
+        Command::new(&shell)
+            .arg("-l")
+            .arg("-c")
+            .arg(format!("command -v {bin}"))
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .ok()?
+    .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    // command -v 对 alias/函数会输出不带路径的名字,子进程无法执行,丢弃
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if !s.contains('/') {
+        return None;
+    }
+    is_executable_file(std::path::Path::new(&s)).then_some(s)
+}
+
+/// 探测版本号(首行,尽力而为)
+async fn probe_version(bin: &str) -> String {
+    use std::process::Stdio;
+    use tokio::process::Command;
+    let Ok(res) = tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        Command::new(bin)
+            .arg("--version")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    else {
+        return String::new();
+    };
+    let Ok(out) = res else { return String::new() };
+    let src = if out.stdout.is_empty() { &out.stderr } else { &out.stdout };
+    String::from_utf8_lossy(src)
+        .lines()
+        .next()
+        .unwrap_or("")
+        .trim()
+        .chars()
+        .take(80)
+        .collect()
+}
+
+/// 解析模型列表命令输出:ollama list(表头 + 多列)与 crush models / opencode models
+/// (每行一个 provider/model)统一取每行首个空白分隔字段,跳过表头与空行
+fn parse_model_list(text: &str) -> Vec<String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with("NAME"))
+        .filter_map(|l| l.split_whitespace().next().map(str::to_string))
+        .collect()
+}
+
+/// 列表命令超时:crush models 首次运行需构建提供方目录,实测可超 3 秒
+const MODELS_LIST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
+
+/// 运行工具自带的模型列表子命令(`ollama list` / `crush models` / `opencode models`),
+/// 解析 stdout 为模型名列表;命令失败返回 None
+async fn list_models(bin: &str, args: &[&str]) -> Option<Vec<String>> {
+    use std::process::Stdio;
+    use tokio::process::Command;
+    let res = tokio::time::timeout(
+        MODELS_LIST_TIMEOUT,
+        Command::new(bin)
+            .args(args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .ok()?
+    .ok()?;
+    if !res.status.success() {
+        return None;
+    }
+    Some(parse_model_list(&String::from_utf8_lossy(&res.stdout)))
+}
+
+/// 子进程 PATH:工具所在目录优先,再补上常见安装目录,
+/// 保证 `#!/usr/bin/env node` 之类的 shebang 能在 GUI 启动的极简 PATH 下找到解释器
+fn child_path(bin: &str) -> String {
+    let mut dirs: Vec<std::path::PathBuf> = Vec::new();
+    if let Some(p) = std::path::Path::new(bin).parent() {
+        if !p.as_os_str().is_empty() {
+            dirs.push(p.to_path_buf());
+        }
+    }
+    dirs.extend(search_dirs());
+    std::env::join_paths(&dirs)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
+/// CLI 调用超时:CLI 冷启动 + 大 diff 推理可能较慢
+const CLI_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
+/// 经本地 CLI 完成一次 AI 调用:提示词经 stdin 传入,取 stdout 为回复
+async fn chat_via_cli(cfg: &AiConfig, cwd: &str, system: &str, user: &str) -> Result<String, String> {
+    let bin = cfg.cli_path.trim();
+    if bin.is_empty() {
+        return Err("尚未选择本地 CLI 工具，请到 设置 → AI 模型配置 中扫描并选择".into());
+    }
+    let def = tool_by_id(&cfg.cli_tool)
+        .ok_or("未知的 CLI 工具，请到设置中重新扫描并选择")?;
+    if !std::path::Path::new(bin).exists() {
+        return Err(format!("CLI 工具不存在：{bin}（可能已卸载或移动，请重新扫描）"));
+    }
+    let model = cfg.model.trim();
+    if def.id == "ollama" && model.is_empty() {
+        return Err("Ollama 必须指定模型，请到设置中选择".into());
+    }
+
+    // CLI 没有独立的 system 通道:系统指令与任务合并为一条提示词
+    let prompt = format!("【系统指令】\n{system}\n\n【任务】\n{user}");
+
+    let mut cmd = tokio::process::Command::new(bin);
+    cmd.args(cli_args(def, model));
+    if !cwd.is_empty() {
+        cmd.current_dir(cwd);
+    }
+    cmd.env("PATH", child_path(bin));
+    cmd.stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true);
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("启动 {} 失败：{e}", def.name))?;
+    // 提示词含完整 diff,可能超出管道缓冲:独立任务写 stdin,
+    // 与 stdout 读取并发进行,否则双方互相等待会死锁
+    if let Some(mut stdin) = child.stdin.take() {
+        tauri::async_runtime::spawn(async move {
+            use tokio::io::AsyncWriteExt;
+            let _ = stdin.write_all(prompt.as_bytes()).await;
+            let _ = stdin.shutdown().await;
+        });
+    }
+    let out = tokio::time::timeout(CLI_TIMEOUT, child.wait_with_output())
+        .await
+        .map_err(|_| format!("{} 执行超时（超过 {} 秒）", def.name, CLI_TIMEOUT.as_secs()))?
+        .map_err(|e| format!("执行 {} 失败：{e}", def.name))?;
+    if !out.status.success() {
+        let err = tail_chars(
+            &String::from_utf8_lossy(&out.stderr),
+            400,
+        );
+        return Err(format!(
+            "{} 返回错误（exit code {}）：{}",
+            def.name,
+            out.status.code().unwrap_or(-1),
+            if err.is_empty() { "无错误输出".into() } else { err }
+        ));
+    }
+    let text = clean_markdown(String::from_utf8_lossy(&out.stdout).trim().to_string());
+    if text.is_empty() {
+        return Err(format!("{} 未返回内容", def.name));
+    }
+    Ok(text)
+}
+
+/// 取文本末尾最多 n 个字符(CLI 的报错通常在输出末尾)
+fn tail_chars(s: &str, n: usize) -> String {
+    let chars: Vec<char> = s.trim().chars().collect();
+    if chars.len() <= n {
+        chars.into_iter().collect()
+    } else {
+        chars[chars.len() - n..].iter().collect()
+    }
+}
+
 /// 构建提交信息的 (system, user) 提示词:暂存差异 + 近期提交参考 + 常规提交预设 + 用户额外要求
 fn build_commit_prompt(cfg: &AiConfig, repo: &str) -> Result<(String, String), String> {
     // 提交语义:只提交已暂存内容,AI 信息基于暂存差异
@@ -207,7 +697,7 @@ fn build_commit_prompt(cfg: &AiConfig, repo: &str) -> Result<(String, String), S
 
 pub async fn generate_commit_message(cfg: &AiConfig, repo: &str) -> Result<String, String> {
     let (system, user) = build_commit_prompt(cfg, repo)?;
-    let msg = chat(cfg, &system, &user).await?;
+    let msg = chat(cfg, repo, &system, &user).await?;
     if msg.is_empty() {
         return Err("AI 未生成提交信息".into());
     }
@@ -221,6 +711,13 @@ pub async fn generate_commit_message_stream(
     repo: &str,
     on_delta: impl Fn(&str) + Send + Sync + 'static,
 ) -> Result<String, String> {
+    // CLI 模式:一次性执行整段提示词,结果作为单个增量推送(前端按全文回填,无需逐 token)
+    if cfg.mode == "cli" {
+        let (system, user) = build_commit_prompt(cfg, repo)?;
+        let msg = chat_via_cli(cfg, repo, &system, &user).await?;
+        on_delta(&msg);
+        return Ok(msg);
+    }
     if cfg.api_key.trim().is_empty() {
         return Err("尚未配置 AI API Key，请先打开设置完成配置".into());
     }
@@ -306,7 +803,7 @@ pub async fn resolve_conflict_file(cfg: &AiConfig, repo: &str, path: &str) -> Re
     }
     let system = "你是一名擅长解决 git 合并冲突的资深工程师。合并冲突时保留双方代码的正确意图，保证语法与语义正确，不留下任何冲突标记（<<<<<<< ======= >>>>>>>），也不添加解释性文字。只输出合并后的完整文件内容。";
     let user = format!("文件路径：{path}\n\n文件内容（含冲突标记）：\n```\n{content}\n```\n\n请输出解决冲突后的完整文件内容。");
-    let resolved = chat(cfg, system, &user).await?;
+    let resolved = chat(cfg, repo, system, &user).await?;
     // 防御:AI 可能再次包上代码块
     let resolved = clean_markdown(resolved);
     std::fs::write(&full, resolved).map_err(|e| format!("写入 {path} 失败： {e}"))?;
@@ -372,6 +869,91 @@ mod tests {
     #[test]
     fn default_commit_mode_is_auto() {
         assert_eq!(AiConfig::default().commit_mode, "auto");
+    }
+
+    /* ===== 本地 CLI 相关 ===== */
+
+    #[test]
+    fn default_mode_is_api() {
+        assert_eq!(AiConfig::default().mode, "api");
+        // 旧配置 JSON 无 mode 字段:反序列化默认走 api,保证向后兼容
+        let legacy: AiConfig = serde_json::from_str(
+            r#"{"base_url":"https://x.com","api_key":"k","model":"m","lang":"中文"}"#,
+        )
+        .unwrap();
+        assert_eq!(legacy.mode, "api");
+    }
+
+    #[test]
+    fn tool_table_lookup() {
+        assert!(tool_by_id("claude").is_some());
+        assert!(tool_by_id("ollama").is_some());
+        assert!(tool_by_id("nonexistent").is_none());
+    }
+
+    #[test]
+    fn cli_args_per_tool() {
+        let claude = tool_by_id("claude").unwrap();
+        assert_eq!(cli_args(claude, "sonnet"), vec!["-p", "--model", "sonnet"]);
+        assert_eq!(cli_args(claude, ""), vec!["-p"]); // 留空用 CLI 默认模型
+
+        let ollama = tool_by_id("ollama").unwrap();
+        assert_eq!(cli_args(ollama, "qwen3:8b"), vec!["run", "qwen3:8b"]);
+        assert_eq!(cli_args(ollama, ""), vec!["run"]); // 模型必填在调用前已校验
+
+        let gemini = tool_by_id("gemini").unwrap();
+        assert_eq!(cli_args(gemini, "gemini-2.5-pro"), vec!["-m", "gemini-2.5-pro"]);
+        assert_eq!(cli_args(gemini, ""), Vec::<String>::new());
+
+        let crush = tool_by_id("crush").unwrap();
+        assert_eq!(cli_args(crush, "opencode/glm-5"), vec!["run", "--model", "opencode/glm-5"]);
+        assert_eq!(cli_args(crush, ""), vec!["run"]); // 留空用其默认模型
+    }
+
+    #[test]
+    fn model_list_parsing() {
+        // ollama list:表头 + 多列,取每行首字段
+        let out = "NAME              ID              SIZE     MODIFIED\n\
+                   qwen3:8b          a8c0             5.2 GB   2 days ago\n\
+                   \n\
+                   deepseek-r1:14b   ea35            9.0 GB   3 weeks ago";
+        assert_eq!(parse_model_list(out), vec!["qwen3:8b", "deepseek-r1:14b"]);
+        // crush/opencode models:每行一个 provider/model
+        assert_eq!(
+            parse_model_list("opencode/gpt-5.5\nalibaba/glm-5\n"),
+            vec!["opencode/gpt-5.5", "alibaba/glm-5"]
+        );
+        assert!(parse_model_list("").is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn find_in_dirs_locates_executable() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("hello-gitty-cli-scan-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let fake = dir.join("fake-ai-cli");
+        std::fs::write(&fake, "#!/bin/sh\n").unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let found = find_in_dirs("fake-ai-cli", &[dir.clone()]);
+        assert_eq!(found, Some(fake.to_string_lossy().into_owned()));
+
+        // 无执行权限的文件不算可执行
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert_eq!(find_in_dirs("fake-ai-cli", &[dir.clone()]), None);
+        // 缺失的命令返回 None
+        assert_eq!(find_in_dirs("missing-cli", &[dir.clone()]), None);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[test]
+    fn tail_chars_keeps_suffix() {
+        assert_eq!(tail_chars("abcdef", 3), "def");
+        assert_eq!(tail_chars("ab", 10), "ab");
+        // 多字节字符按字符截断,不劈开 UTF-8
+        assert_eq!(tail_chars("你好世界", 2), "世界");
     }
 
     /// 临时 git 仓库(与 git.rs 测试同款模式)

@@ -49,12 +49,33 @@ pub struct Settings {
     /// 最近使用的运行命令历史(按使用顺序,新→旧),供下拉快捷选择
     #[serde(default)]
     pub run_history: Vec<String>,
+    /// 每个仓库隐藏的运行命令(路径 -> 命令列表)
+    #[serde(default)]
+    pub run_hidden: std::collections::HashMap<String, Vec<String>>,
+    /// 每个仓库最近一次运行时间(Unix 毫秒时间戳)
+    #[serde(default)]
+    pub run_last: std::collections::HashMap<String, u64>,
     /// 右侧 diff 面板宽度(px),拖拽调整后持久化
     #[serde(default)]
     pub diff_width: Option<f64>,
     /// 底部运行日志面板高度(px),拖拽调整后持久化
     #[serde(default)]
     pub run_height: Option<f64>,
+    /// 侧栏过滤:开启后只显示有待提交更改的项目
+    #[serde(default)]
+    pub sidebar_dirty_only: bool,
+    /// 侧栏宽度(px),拖拽调整后持久化
+    #[serde(default)]
+    pub sidebar_width: Option<f64>,
+    /// 侧栏是否处于简洁(收起)模式
+    #[serde(default)]
+    pub sidebar_collapsed: bool,
+    /// 界面主题:"dark" | "light",缺省 "dark"
+    #[serde(default)]
+    pub theme: String,
+    /// 保留新版本尚未认识的字段,避免更新后再次保存时丢失设置
+    #[serde(flatten)]
+    pub extra: std::collections::HashMap<String, serde_json::Value>,
 }
 
 pub struct SettingsStore {
@@ -63,6 +84,7 @@ pub struct SettingsStore {
 
 impl SettingsStore {
     pub fn new(app: &tauri::AppHandle) -> Self {
+        // 使用稳定的应用配置目录与固定文件名,更新版本只替换应用包,不迁移用户配置。
         let dir = app
             .path()
             .app_config_dir()

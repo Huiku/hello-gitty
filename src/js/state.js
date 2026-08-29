@@ -5,11 +5,16 @@ export const { listen } = window.__TAURI__.event;
 
 export const $ = (id) => document.getElementById(id);
 
-export const DEFAULT_AI = { base_url: "https://api.deepseek.com", api_key: "", model: "deepseek-v4-flash", lang: "中文", commit_mode: "auto", custom_prompt: "" };
+export const DEFAULT_AI = { base_url: "https://api.deepseek.com", api_key: "", model: "deepseek-v4-flash", mode: "api", cli_tool: "", cli_path: "", lang: "中文", commit_mode: "auto", custom_prompt: "" };
 export const STATUS_CHARS = { A: "A", M: "M", D: "D", R: "R", C: "C", U: "?", "?": "?" };
 
+// 主题:缺省跟随当前系统偏好;数据键是 CSS [data-theme] 期望值
+export const THEMES = ["dark", "light"];
+const prefersLight = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: light)").matches;
+export const DEFAULT_THEME = prefersLight ? "light" : "dark";
+
 /* ===== 共享可变状态(setter 供跨模块重绑) ===== */
-export let settings = { ai: { ...DEFAULT_AI }, last_repo: null, repos: [], run_commands: {}, run_urls: {}, run_history: [], diff_width: null, run_height: null };
+export let settings = { ai: { ...DEFAULT_AI }, last_repo: null, repos: [], run_commands: {}, run_urls: {}, run_history: [], run_hidden: {}, run_last: {}, diff_width: null, run_height: null, sidebar_dirty_only: false, sidebar_width: null, sidebar_collapsed: false, theme: DEFAULT_THEME };
 export let repos = []; // 侧栏仓库摘要列表
 export let repo = null; // 当前仓库路径
 export let view = "repo"; // 主区视图:repo(单项目面板) | overview(多仓库总览)
@@ -137,4 +142,12 @@ export function repoAvatarColor(path) {
   let h = 0;
   for (let i = 0; i < path.length; i++) h = (h * 31 + path.charCodeAt(i)) >>> 0;
   return { bg: AVATAR_COLORS[h % AVATAR_COLORS.length], fg: "var(--text-inverse)" };
+}
+
+// 把当前主题写到 <html data-theme>;CSS 用 [data-theme=dark|light] 覆盖变量。
+// 非法值或缺失回落 DEFAULT_THEME(首次启动跟随系统),旧 settings 的废弃主题值也走此回落。
+export function applyTheme(name) {
+  const t = THEMES.includes(name) ? name : DEFAULT_THEME;
+  document.documentElement.dataset.theme = t;
+  return t;
 }

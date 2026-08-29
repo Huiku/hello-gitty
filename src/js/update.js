@@ -1,7 +1,7 @@
 /* 应用内更新:基于 Tauri updater 插件。启动后自动静默检查,也可在设置的「关于与更新」
    手动触发;发现新版本弹窗展示说明,下载(带进度)安装并自动重启。
    插件 IPC 直接用 core invoke 调用(项目零 npm 运行时依赖,不引入插件 JS 包)。 */
-import { $, invoke, toast, setButtonLoading } from "./state.js";
+import { $, invoke, toast, setButtonLoading, settings } from "./state.js";
 
 let pendingUpdate = null; // check() 返回的更新元数据 { rid, version, currentVersion, body }
 
@@ -74,13 +74,16 @@ async function installUpdate() {
     }
   };
   try {
+    // 更新前先落盘当前内存配置,避免用户刚调整的设置在重启时丢失
+    setButtonLoading(btn, true, "保存设置…");
+    await invoke("settings_save", { settings });
+    setButtonLoading(btn, true, "准备下载…");
     // restartAfterInstall 由插件在装完后自动重启;Windows NSIS 安装器接管时本 await 不会再返回
     await invoke("plugin:updater|download_and_install", {
       rid: u.rid,
       onEvent: ch,
       restartAfterInstall: true,
     });
-    setButtonLoading(btn, false);
     toast("更新完成", true);
     closeUpdateDialog();
   } catch (e) {

@@ -4,6 +4,7 @@ import { $, invoke, toast, setButtonLoading, repoAvatarColor, settings, repos, r
 import { refresh, showRefreshing } from "./panel.js";
 import { syncRunPanel, runningRepos } from "./run-panel.js";
 import { syncRepoFileWatcher } from "./file-watcher.js";
+import { refreshTip } from "./tooltip.js";
 
 const SIDEBAR_MIN = 48, SIDEBAR_MAX = 420; // 侧栏拖拽宽度范围
 const SIDEBAR_COMPACT_MAX = 96; // 简洁展示的宽度上限(含);更宽自动切全面展示
@@ -190,9 +191,18 @@ export function renderRepoList(keepScroll = false) {
   const ul = $("repo-list");
   const scrollTop = ul.scrollTop; // 整表重建会重置滚动,保存并在渲染后恢复(拖拽排序/后台刷新不跳动)
   ul.innerHTML = "";
-  $("sidebar-empty").classList.toggle("hidden", repos.length > 0);
+  // 过滤:只看待提交(更改+冲突;与图标角标同口径)。数据仍用完整列表,过滤仅影响渲染,
+  // 拖拽排序/切库/总览均基于全量,不受影响
+  const dirtyOnly = !!settings.sidebar_dirty_only;
+  const list = dirtyOnly ? repos.filter((r) => (r.unstaged || 0) + (r.conflicts || 0) > 0) : repos;
+  const empty = $("sidebar-empty");
+  empty.textContent = repos.length === 0 ? "暂无项目，点击 + 添加" : "没有待提交的项目";
+  empty.classList.toggle("hidden", !(repos.length === 0 || (dirtyOnly && list.length === 0)));
+  $("btn-dirty-only").classList.toggle("on", dirtyOnly);
+  $("btn-dirty-only").dataset.tip = dirtyOnly ? "显示全部项目" : "只显示待提交项目";
+  refreshTip($("btn-dirty-only")); // 悬停中切换过滤:提示文案随状态就地更新
   const running = new Set(runningRepos().map((x) => x.repo)); // 运行中项目集(绿点标识)
-  for (const r of repos) {
+  for (const r of list) {
     const li = document.createElement("li");
     // 总览视图下不标记任何项目为选中(选中态属于「总览」入口),避免重渲染时残留旧高亮
     li.className = "repo-item" + (view === "repo" && r.path === repo ? " active" : "");
@@ -437,6 +447,13 @@ export function bindSidebarEvents() {
     syncRunPanel(); // 清空底部运行栏(旧项目的命令与日志)
     const { showEmpty } = await import("./panel.js");
     showEmpty(false);
+  });
+
+  // 侧栏过滤:只看待提交项目(状态持久化,后台刷新时列表自动跟随最新更改)
+  $("btn-dirty-only").addEventListener("click", () => {
+    settings.sidebar_dirty_only = !settings.sidebar_dirty_only;
+    invoke("settings_save", { settings }).catch(() => {});
+    renderRepoList(true); // 保持滚动位置:切换过滤视图不跳动
   });
   $("btn-clone").addEventListener("click", cloneRepo);
   $("clone-dest").addEventListener("click", async () => {

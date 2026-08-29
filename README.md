@@ -18,12 +18,13 @@ Hello Gitty 是一款专为单人 AI 开发者打造的 Git 管理工具。
 
 ## 核心亮点
 
-- **专注 AI 开发工作流** — 自动生成 Conventional Commits 提交信息，并辅助处理 Git 冲突
+- **专注 AI 开发工作流** — 可通过 OpenAI 兼容 API 或本地 AI CLI 自动生成 Conventional Commits 提交信息，并辅助处理 Git 冲突
 - **多仓库统一管理** — 集中查看项目状态、提交活动与类型分布，快速切换和启动项目
 - **内置运行环境管理** — 自动识别常见项目的启动方式与端口，在应用内管理开发服务器
 - **安全可控的版本操作** — 支持查看本地与远程历史，并在确认后回退到任意版本
 - **轻量且不打扰开发** — Tauri 2 + 原生前端，约 5–8 MB 安装包，支持窗口置顶与系统托盘
 - **隐私优先** — Git 操作通过本机 CLI 完成，仓库内容默认保留在本机
+- **界面可按习惯调整** — 支持深浅主题、可收起侧栏、侧栏宽度持久化和“只显示待提交项目”筛选
 
 ## 功能
 
@@ -33,6 +34,7 @@ Hello Gitty 是一款专为单人 AI 开发者打造的 Git 管理工具。
 | 项目侧栏 | 打开/克隆/拖拽添加仓库，自动识别项目图标与类型，状态摘要（分支、领先/落后、更改数）实时刷新 |
 | 工作区面板 | 冲突/暂存/更改三分组展示，行内 diff 预览，单文件暂存/丢弃（两步确认防误操作），一键配置忽略规则（自动生成 .gitignore 候选） |
 | 提交 | 只提交已暂存内容 → AI 自动生成提交信息 → 提交；也可一键全部暂存 |
+| AI 接入 | 支持 OpenAI 兼容 API，以及 Claude Code、Codex CLI、Gemini CLI、Qwen Code、Ollama、Crush、OpenCode 等本地 CLI 工具 |
 | 推送 / 拉取 | 自动处理无上游分支；后台静默 fetch 保持状态新鲜 |
 | AI 冲突解决 | 冲突文件交给 AI 合并（> 80 KB 需手动），自动 `git add` 并完成合并 |
 | 历史时间线 | 本地+远程提交合并展示，一键回退到任意历史版本（确认弹窗） |
@@ -45,12 +47,19 @@ Hello Gitty 是一款专为单人 AI 开发者打造的 Git 管理工具。
 
 ### 从 Release 下载
 
-前往 [Releases](https://github.com/Bavoch/hello-gitty/releases) 下载已发布的安装包。项目支持的格式为：
+前往 [Releases](https://github.com/Bavoch/hello-gitty/releases) 下载最新版安装包：
 
-- macOS：`.dmg`
-- Windows 10/11（x64）：`-setup.exe`
+| 平台 | 文件 |
+| --- | --- |
+| macOS Apple Silicon | `Hello.Gitty_<版本>_aarch64.dmg` |
+| macOS Intel | `Hello.Gitty_<版本>_x64.dmg` |
+| Windows 10/11（x64） | `Hello.Gitty_<版本>_x64-setup.exe` |
 
 安装后应用会在启动时自动检查更新，也可以在「设置 → 关于与更新」中手动检查，直接在应用内完成下载与安装。
+
+> macOS 安装包暂未经过 Apple 公证，首次启动可能需要右键应用并选择「打开」，或在「系统设置 → 隐私与安全性」中允许。
+>
+> Windows 安装包暂未使用商业代码签名证书；SmartScreen 提示时，请确认文件来自本仓库后选择「仍要运行」。
 
 ### 从源码构建
 
@@ -67,7 +76,7 @@ npm run build    # macOS 输出 .dmg；Windows 输出 NSIS setup.exe
 ## 使用
 
 1. 打开应用 → 「选择仓库」选任意本地项目文件夹，或者从远程地址克隆
-2. 侧栏底部「设置」→ 填入 OpenAI 兼容接口的 API 地址、Key 和模型；不配置 Key 时仍可手动填写提交信息
+2. 侧栏底部「设置」→ 选择 OpenAI 兼容 API 或本地 AI CLI；API 模式填写地址、Key 和模型，本地 CLI 模式会扫描已安装并完成登录的工具
 3. 在工作区查看冲突、暂存区和未暂存改动，点击文件可预览 diff
 4. 点击「提交」生成或填写提交信息，再用「推送 / 拉取」同步远程仓库
 5. 在「运行」面板选择识别到的启动命令，查看日志并启停开发服务器
@@ -75,7 +84,7 @@ npm run build    # macOS 输出 .dmg；Windows 输出 NSIS setup.exe
 ## 隐私与安全
 
 - Git 操作通过本机的 `git` CLI 完成，仓库内容默认只留在本机。
-- 使用 AI 生成功能或解决冲突时，相关 diff、近期提交信息或冲突文件内容会发送到你在设置中填写的 AI 接口。请确认该接口的隐私政策和数据处理方式。
+- API 模式会把相关 diff、近期提交信息或冲突文件内容发送到设置中填写的 AI 接口；本地 CLI 模式会把同类内容交给所选工具处理，该工具是否上传数据取决于其提供方。请确认对应服务的隐私政策和数据处理方式。
 - AI API Key 仅保存在本机配置中；GitHub Token 用于创建远程仓库和推送，请勿提交到仓库或公开分享。
 - 发现安全漏洞请按 [安全策略](SECURITY.md) 私密报告；一般问题和功能建议可提交 [Issue](https://github.com/Bavoch/hello-gitty/issues)，也可以邮件联系 `hello@lumifold.top`。
 
@@ -83,7 +92,7 @@ npm run build    # macOS 输出 .dmg；Windows 输出 NSIS setup.exe
 
 - **Tauri 2** + Rust 后端（系统 git CLI，约 5–8 MB 安装包）
 - 原生 HTML/CSS/JS 前端，无打包器
-- AI 走 OpenAI 兼容接口（OpenAI / DeepSeek / 本地服务均可），Key 只存本机
+- AI 支持 OpenAI 兼容接口（OpenAI / DeepSeek / 本地服务）和本地 CLI（Claude Code / Codex / Gemini / Qwen / Ollama / Crush / OpenCode）
 
 ## 结构
 

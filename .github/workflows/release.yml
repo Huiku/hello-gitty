@@ -17,7 +17,13 @@ jobs:
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --draft --generate-notes --title "$GITHUB_REF_NAME"
+        run: |
+          notes=".github/RELEASE_NOTES_${GITHUB_REF_NAME}.md"
+          if [ -f "$notes" ]; then
+            gh release create "$GITHUB_REF_NAME" --draft --notes-file "$notes" --title "Hello Gitty $GITHUB_REF_NAME"
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --generate-notes --title "Hello Gitty $GITHUB_REF_NAME"
+          fi
 
   build-macos:
     needs: create-release
@@ -54,6 +60,11 @@ jobs:
         run: |
           mv "src-tauri/target/release/bundle/macos/Hello Gitty.app.tar.gz" src-tauri/target/release/bundle/macos/Hello.Gitty_x64.app.tar.gz
           mv "src-tauri/target/release/bundle/macos/Hello Gitty.app.tar.gz.sig" src-tauri/target/release/bundle/macos/Hello.Gitty_x64.app.tar.gz.sig
+
+      - name: Validate Intel packages
+        run: |
+          hdiutil verify src-tauri/target/release/bundle/dmg/*.dmg
+          tar -tzf src-tauri/target/release/bundle/macos/Hello.Gitty_x64.app.tar.gz >/dev/null
 
       - name: Upload dmg to release
         env:
@@ -103,6 +114,11 @@ jobs:
           mv "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello Gitty.app.tar.gz" src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello.Gitty_aarch64.app.tar.gz
           mv "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello Gitty.app.tar.gz.sig" src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello.Gitty_aarch64.app.tar.gz.sig
 
+      - name: Validate Apple Silicon packages
+        run: |
+          hdiutil verify src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          tar -tzf src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello.Gitty_aarch64.app.tar.gz >/dev/null
+
       - name: Upload Apple Silicon dmg
         env:
           GH_TOKEN: ${{ github.token }}
@@ -145,6 +161,45 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npx tauri build --bundles nsis
+
+      - name: Test release installer lifecycle
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path "src-tauri/target/release/bundle/nsis/*-setup.exe").Path
+          $installDir = Join-Path $env:RUNNER_TEMP "hello-gitty-release"
+          $installer = Start-Process -FilePath $setup -ArgumentList @("/S", "/D=$installDir") -Wait -PassThru
+          if ($installer.ExitCode -ne 0) {
+            throw "Installer exited with code $($installer.ExitCode)"
+          }
+
+          $exe = Join-Path $installDir "hello-gitty.exe"
+          if (-not (Test-Path $exe)) {
+            throw "Installed executable not found at $exe"
+          }
+          $process = Start-Process -FilePath $exe -PassThru
+          try {
+            Start-Sleep -Seconds 5
+            if ($process.HasExited) {
+              throw "Installed Hello Gitty exited during startup with code $($process.ExitCode)"
+            }
+          } finally {
+            if (-not $process.HasExited) {
+              taskkill.exe /PID $process.Id /T /F
+            }
+          }
+
+          $uninstaller = Join-Path $installDir "uninstall.exe"
+          if (-not (Test-Path $uninstaller)) {
+            throw "Uninstaller not found at $uninstaller"
+          }
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) {
+            throw "Uninstaller exited with code $($uninstall.ExitCode)"
+          }
+          Start-Sleep -Seconds 2
+          if (Test-Path $exe) {
+            throw "Executable remains after uninstall"
+          }
 
       - name: Upload installer to release
         shell: pwsh

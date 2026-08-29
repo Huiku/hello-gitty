@@ -1,15 +1,16 @@
-:root {
+:root,
+[data-theme=dark] {
   /* Hello Gitty / terminal dashboard tokens. Keep these values as the visual source of truth. */
-  --bg: #050505;
-  --panel: #090909;
-  --panel-2: #111111;
-  --hover: #151515;
-  --hover-strong: #1b1b1b;
-  --border: #292929;
-  --border-strong: #3a3a3a;
-  --text: #ededed;
-  --text-dim: #9a9a9a;
-  --text-head: #c9c9c9;
+  --bg: #1b1b1b;
+  --panel: #222222;
+  --panel-2: #292929;
+  --hover: #333333;
+  --hover-strong: #3b3b3b;
+  --border: #464646;
+  --border-strong: #5b5b5b;
+  --text: #f0f0f0;
+  --text-dim: #b5b5b5;
+  --text-head: #dddddd;
   --accent: #7d5cdf;
   --accent-hover: #9480e8;
   --accent-bright: #a99aef;
@@ -20,25 +21,25 @@
   --orange: #ff9d00;
   --blue: #55b7ff;
   --cyan: #00c9b7;
-  --radius: 0px;
+  --radius: 6px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
-  --surface-0: #000000;
-  --surface-1: #030303;
-  --surface-2: #050505;
-  --surface-3: #060606;
-  --surface-4: #070707;
-  --surface-5: #080808;
-  --surface-active: #120b1a;
-  --text-inverse: #050505;
+  --surface-0: #151515;
+  --surface-1: #1a1a1a;
+  --surface-2: #202020;
+  --surface-3: #242424;
+  --surface-4: #292929;
+  --surface-5: #2d2d2d;
+  --surface-active: #35294d;
+  --text-inverse: #1b1b1b;
   --text-bright: #ffffff;
-  --text-dialog: #e8e8e8;
-  --text-muted-2: #8a8a8a;
-  --border-soft: #3c3c3c;
-  --border-focus: #5a5a5a;
+  --text-dialog: #f0f0f0;
+  --text-muted-2: #a0a0a0;
+  --border-soft: #5c5c5c;
+  --border-focus: #737373;
   --shadow: #00000066;
   --shadow-deep: #000000cc;
   --shadow-overlay: #00000099;
@@ -81,9 +82,9 @@
   --status-add-faint: #89d18515;
   --status-danger-faint-2: #f4877115;
   --status-add-text: #a5d68b;
-  --surface-hover: #151515;
-  --surface-hover-strong: #1b1b1b;
-  --toast-bg: #303032;
+  --surface-hover: #333333;
+  --surface-hover-strong: #3b3b3b;
+  --toast-bg: #454547;
   --black: #000000;
   --white-faint: #ffffff1f;
   --shadow-medium: #00000088;
@@ -91,6 +92,72 @@
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace;
   --bar-h: 38px; /* 底部操作栏统一高度(左侧设置栏 / 右侧运行栏) */
   --ui-scale: 1;
+  /* 控件小色:输入框背景、select / search 自绘箭头笔触。原先为硬编码,浅色主题下需反向 */
+  --input-bg: #20201e;
+  --select-arrow: #a9a9a3;
+  --search-arrow: #85857f;
+  /* 主按钮文字色:深浅主题下均为亮色,在品牌紫实底上保持高对比 */
+  --on-accent: #ffffff;
+}
+
+/* 浅色主题:同语义色翻成对应的「亮底」对照值。仅覆盖需要随主题变化的色,
+   状态色/图表色/头像色保持不变(通用语义) */
+[data-theme=light] {
+  --bg: #fafafa;
+  --panel: #ffffff;
+  --panel-2: #f3f3f4;
+  --hover: #f0f0f1;
+  --hover-strong: #e6e6e8;
+  --border: #e2e2e5;
+  --border-strong: #c8c8cc;
+  --text: #1a1a1f;
+  --text-dim: #6b6b73;
+  --text-head: #2a2a30;
+  --accent: #6c4ddc;
+  --accent-hover: #5a3ec7;
+  --accent-bright: #4a2fb0;
+  --surface-0: #ffffff;
+  --surface-1: #fbfbfc;
+  --surface-2: #f4f4f6;
+  --surface-3: #ffffff;
+  --surface-4: #f7f7f8;
+  --surface-5: #ffffff;
+  --surface-active: #ece6fb;
+  --text-inverse: #ffffff;
+  --text-bright: #0a0a0c;
+  --text-dialog: #1a1a1f;
+  --text-muted-2: #8a8a92;
+  --border-soft: #d0d0d4;
+  --border-focus: #a0a0a8;
+  --shadow: #0a0a0c14;
+  --shadow-deep: #0a0a0c33;
+  --shadow-overlay: #0a0a0c4d;
+  --status-soft-red: #c25a4a;
+  --accent-soft: #6c4ddc1a;
+  --accent-faint: #6c4ddc22;
+  --status-add-soft: #1ea76b22;
+  --status-modified-soft: #b4870c22;
+  --status-danger-soft: #d0493922;
+  --status-blue-soft: #1f86e522;
+  --status-add-faint: #1ea76b14;
+  --status-danger-faint: #d0493914;
+  --status-danger-faint-2: #d0493914;
+  --status-add-text: #0f7a48;
+  --surface-hover: #f0f0f1;
+  --surface-hover-strong: #e6e6e8;
+  --toast-bg: #2a2a30;
+  --white-faint: #00000014;
+  --shadow-medium: #0a0a0c22;
+  --shadow-strong: #0a0a0c33;
+  --input-bg: #ffffff;
+  --select-arrow: #6b6b73;
+  --search-arrow: #8a8a92;
+  /* 浅色背景下原亮绿对比度过低,改用偏深一档;与 --status-add-text 同色族保持一致 */
+  --green: #0f9d58;
+  /* 暗色专属纯白文字/纯黑面板需要被覆盖的场合:用 alpha 调降使浅色下不刺眼 */
+  --status-muted: #8a8a92;
+  /* 主按钮文字色:浅色主题下仍为白,让品牌紫实底保持高对比与一致视觉 */
+  --on-accent: #ffffff;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -116,7 +183,7 @@ body {
 button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
 button:disabled { opacity: .45; cursor: default; }
 input, select, textarea {
-  font: inherit; color: var(--text); background: #141414;
+  font: inherit; color: var(--text); background: var(--input-bg);
   border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; outline: none;
   user-select: text; -webkit-user-select: text;
 }
@@ -124,17 +191,27 @@ input:focus, select:focus, textarea:focus { border-color: var(--border-focus); }
 /* 输入框默认提示文字弱化:暗于正文的次级灰 */
 input::placeholder, textarea::placeholder { color: var(--text-muted-2); opacity: 1; }
 select::placeholder { color: var(--text-muted-2); }
-/* select 自定义外观:去除系统箭头与样式,改用自定义箭头
-   (本应用 WebView 对带样式的 select 不渲染原生箭头,必须自绘) */
+/* select 自定义外观:去除系统箭头与样式,改用自绘 SVG 箭头。
+   暗色系主题共用深色箭头,浅色主题单独提高对比度。 */
 select {
   appearance: none; -webkit-appearance: none;
   padding-right: 28px; cursor: pointer;
+  background-color: var(--input-bg);
+}
+:root select,
+[data-theme=dark] select {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat: no-repeat;
   background-position: right 8px center;
   background-size: 12px;
 }
-select option { background: #141414; color: var(--text); }
+[data-theme=light] select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b73' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
+}
+select option { background: var(--input-bg); color: var(--text); }
 
 .hidden { display: none !important; }
 .spacer { flex: 1; }
@@ -156,6 +233,13 @@ select option { background: #141414; color: var(--text); }
 /* 置顶激活:主题色 + 图钉倾斜(斜着钉住) */
 .icon-btn.active { color: var(--accent); }
 .icon-btn.active:hover { color: var(--accent); background: var(--accent-soft); }
+/* 侧栏「只看待提交」过滤开启:主题色标识(不用 .active,那是图钉的旋转定制) */
+#btn-dirty-only.on { color: var(--accent); }
+#btn-dirty-only.on:hover { color: var(--accent); background: var(--accent-soft); }
+/* 筛选按钮单独靠右:与左侧「置顶/设置」分组隔开 */
+#btn-dirty-only { margin-left: auto; }
+/* 收起态 footer 纵向堆叠,取消右推保持居中 */
+#sidebar.collapsed #btn-dirty-only { margin-left: 0; }
 .icon-btn.active svg { transform: rotate(45deg); }
 
 /* ===== 项目标题栏(图标 + 名称 + 分支 + 运行) ===== */
@@ -221,7 +305,7 @@ select option { background: #141414; color: var(--text); }
 #push-count, #pull-count { position: absolute; top: -3px; right: -4px; pointer-events: none; }
 
 /* 按钮/菜单项悬停过渡:背景与边框文字色平滑变化(轻量 0.15s) */
-.tool-btn, .icon-btn, .mini-btn, .run-chip,
+.tool-btn, .icon-btn, .mini-btn, .run-chip, .card-more,
 .ctx-menu button, .more-menu button,
 .branch-item, .repo-item {
   transition: background-color .15s ease, border-color .15s ease, color .15s ease;
@@ -239,11 +323,11 @@ select option { background: #141414; color: var(--text); }
 .tool-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 /* 主操作:主题色实心按钮 */
 .tool-btn.primary {
-  background: var(--accent); border-color: var(--accent); color: var(--text-bright);
+  background: var(--accent); border-color: var(--accent); color: var(--on-accent);
   font-weight: 600;
 }
 .tool-btn.primary:hover:not(:disabled) {
-  background: var(--accent-hover); border-color: var(--accent-hover);
+  background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent);
 }
 .tool-btn.danger { color: var(--text); }
 .dlg-hint.warn { color: var(--red); }
@@ -352,8 +436,11 @@ body.resizing { cursor: col-resize; user-select: none; -webkit-user-select: none
 /* 侧栏简洁展示:仅图标轨道,左右边距与展开时一致(10px) */
 #sidebar.collapsed .sidebar-head > span { display: none; }
 #sidebar.collapsed .sidebar-head { justify-content: center; }
-/* 收起态:容器保持正方形(44×44),在轨道内居中;去掉横向内边距后图标自然居中 */
-#sidebar.collapsed .repo-item { grid-template-columns: 1fr; justify-items: center; padding: 8px 0; margin: 1px auto; width: 44px; height: 44px; }
+/* 收起态:菜单项直接撑满侧栏,取消左右边距;图标仍在轨道中心对齐。 */
+#sidebar.collapsed .repo-item {
+  grid-template-columns: 1fr; justify-items: center; padding: 8px 0;
+  margin: 0; width: 100%; height: 44px;
+}
 #sidebar.collapsed .repo-info { display: none; }
 #sidebar.collapsed .sidebar-empty { display: none; }
 /* 收起时列表按内容定高,让「添加项目」按钮紧跟列表而非沉底;
@@ -362,14 +449,18 @@ body.resizing { cursor: col-resize; user-select: none; -webkit-user-select: none
 /* 底部按钮纵向堆叠,适配窄轨道 */
 #sidebar.collapsed .sidebar-footer { flex-direction: column; justify-content: center; }
 /* 收起时:添加项目按钮跟在项目列表下方并居中 */
-#sidebar.collapsed #btn-add-repo { align-self: center; margin-top: 2px; }
+#sidebar.collapsed #btn-add-repo {
+  align-self: center; flex: 0 0 26px; width: 26px; min-width: 26px; max-width: 26px;
+  height: 26px; min-height: 26px; max-height: 26px; padding: 0; margin-top: 2px;
+}
+#sidebar.collapsed #btn-add-repo svg { display: block; width: 16px; height: 16px; }
 #btn-toggle-sidebar svg { transition: transform .15s ease; }
 #sidebar.collapsed #btn-toggle-sidebar svg { transform: rotate(180deg); }
 .sidebar-head .icon-btn { width: 26px; height: 26px; }
 #repo-list { list-style: none; overflow-y: auto; flex: 1; }
 .repo-item {
   margin: 1px 8px; padding: 11px 10px; cursor: pointer;
-  border-radius: 6px; /* 圆角悬浮块,非通栏 */
+  border-radius: 0; /* 侧栏菜单统一直角,选中态可贴齐侧栏边缘 */
   display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 6px;
   user-select: none; -webkit-user-select: none;
 }
@@ -561,6 +652,16 @@ body.resizing { cursor: col-resize; user-select: none; -webkit-user-select: none
   font-size: 13px; color: var(--text);
 }
 .ctx-menu button:hover { background: var(--hover-strong); color: var(--text); }
+
+/* ===== 全局自定义 tooltip(悬停 [data-tip] 立即显示,替代系统原生 title 提示) ===== */
+.tooltip {
+  position: fixed; z-index: 200; pointer-events: none;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3px 8px; font-size: 12px; color: var(--text);
+  box-shadow: 0 4px 16px var(--shadow); white-space: nowrap;
+  user-select: none; -webkit-user-select: none;
+}
 .spinner {
   width: 12px; height: 12px; border: 1.5px solid var(--text-dim); border-top-color: transparent;
   border-radius: 50%; display: inline-block; animation: spin .7s linear infinite;
@@ -655,7 +756,8 @@ body.resizing { cursor: col-resize; user-select: none; -webkit-user-select: none
 /* 设置弹窗:顶部标题栏 + 左侧分组导航 */
 .settings-dialog { padding: 0; gap: 0; overflow: hidden; width: min(560px, 94vw); height: min(440px, 80vh); }
 .settings-title {
-  flex: none; padding: 12px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex: none; padding: 6px 12px 6px 18px;
   font-size: 14px; font-weight: 600; color: var(--text-head);
   border-bottom: 1px solid var(--border);
 }
@@ -673,7 +775,7 @@ body.resizing { cursor: col-resize; user-select: none; -webkit-user-select: none
   text-align: left; white-space: nowrap; /* 标题不换行 */
 }
 .settings-nav-item:hover { background: var(--hover); color: var(--text); }
-.settings-nav-item.active { background: var(--hover-strong); color: var(--text); }
+.settings-nav-item.active { background: var(--accent-faint); color: var(--accent-bright); border-right-color: var(--accent); }
 .settings-body { flex: 1; padding: 18px; overflow-y: auto; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .settings-tab { display: flex; flex-direction: column; gap: 12px; }
 .settings-dialog .dlg-actions { padding: 12px 18px; border-top: 1px solid var(--border); flex: none; }
@@ -777,7 +879,7 @@ body.resizing { cursor: col-resize; user-select: none; -webkit-user-select: none
   position: fixed; bottom: 32px; left: 50%;
   transform: translate(-50%, 12px);
   background: var(--toast-bg); border-radius: 6px;
-  padding: 6px 12px; font-size: 13px; color: var(--text);
+  padding: 6px 12px; font-size: 13px; color: #f0f0f0; /* 背景恒为深色,文字固定浅色不随主题 */
   max-width: 80vw; white-space: pre-wrap; word-break: break-word;
   box-shadow: 0 4px 12px var(--shadow);
   opacity: 0; pointer-events: none;
@@ -1052,14 +1154,14 @@ button.repo-item.overview-item {
 }
 .run-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .run-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
-/* 卡片右上角「更多」按钮:弱化的 ⋯,悬停提亮 */
+/* 卡片右上角「更多」按钮:定尺寸方块;悬停背景用半透明黑,叠在卡片悬停底色上自动压暗,深浅色主题通用 */
 .card-more {
-  flex: none; padding: 0 5px; margin-left: 2px;
+  flex: none; width: 22px; height: 22px; margin-left: 2px;
+  display: inline-flex; align-items: center; justify-content: center;
   background: none; border: none; cursor: pointer;
-  color: var(--text-dim); font-size: 14px; line-height: 20px;
-  border-radius: 4px;
+  color: var(--text-dim); font-size: 14px; line-height: 1;
 }
-.card-more:hover { color: var(--text); background: var(--hover); }
+.card-more:hover { color: var(--text); background: #00000033; }
 .run-card-name {
   flex: 1; min-width: 0; font-size: 13px; font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -1076,7 +1178,9 @@ button.repo-item.overview-item {
 /* 固定贴底:不随上方内容高度变化;padding-top 保证与上方地址行的最小间距(不依赖内容高度)。
    stretch 让下拉框与按钮互相等高(并列控件高度必须一致,且不随字体/内边距调整漂移) */
 .run-card-actions { display: flex; gap: 6px; align-items: stretch; justify-content: flex-end; margin-top: auto; padding-top: 9px; }
-.run-card-actions .mini-btn.go:hover { color: var(--green); }
+.run-card-actions .mini-btn.go:hover {
+  color: var(--text-dim); background: var(--surface-2);
+}
 /* 运行中的停止按钮以绿色呈现 */
 /* 运行中的停止按钮:与底部运行栏 .run-chip.running 同一套配色(去边框、淡填充),尺寸随卡片更紧凑 */
 .run-card-actions .mini-btn.halt { border-color: transparent; color: var(--green); background: var(--status-add-faint); }
@@ -1085,13 +1189,19 @@ button.repo-item.overview-item {
 .run-cmd-select {
   flex: 1; min-width: 0; /* 高度不固定:由操作行 stretch 拉伸,与右侧按钮严格等高 */
   font-size: 11px; font-family: var(--mono); color: var(--text-dim);
-  background: var(--panel-2); border: 1px solid var(--border); border-radius: 3px;
+  background-color: var(--panel-2); border: 1px solid var(--border); border-radius: 3px;
   padding: 0 18px 0 4px; cursor: pointer;
   appearance: none; -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%23666' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 5px center;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+:root .run-cmd-select,
+[data-theme=dark] .run-cmd-select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%23666' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+[data-theme=light] .run-cmd-select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%238a8a92' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 .run-cmd-select:hover { color: var(--text); }
 .run-cmd-select:disabled { cursor: default; color: var(--text); opacity: .85; }
@@ -1128,11 +1238,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 #toolbar { min-height: 44px; padding: 6px var(--space-4); border-bottom: 1px solid var(--border); background: var(--surface-4); }
 .tool-btn { border-color: var(--border); background: transparent; color: var(--text-head); }
 .tool-btn:hover:not(:disabled) { border-color: var(--border-strong); background: var(--hover); color: var(--text); }
-.tool-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--text-bright); }
-.tool-btn.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.tool-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.tool-btn.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--on-accent); }
 .branch-chip { border-color: transparent; }
 
-.section, #diff-panel, .dash-activity, .kpi-card, .run-card, .dialog { border-radius: 0; }
+.section, #diff-panel, .dash-activity, .kpi-card, .run-card, .dialog { border-radius: var(--radius); }
 .section-head, .section-head-row { background: var(--panel); }
 .section-head { min-height: 34px; padding-inline: var(--space-4); color: var(--text-head); }
 .section-head:hover, .file-row:hover, .commit-row:hover { background: var(--hover); }
@@ -1143,9 +1253,30 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 
 #dashboard { padding: 20px 24px 24px; gap: 16px; background: var(--bg); }
 .dash-head { min-height: 32px; }
-.dash-head .dash-title { font-size: 15px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 8px; }
+.dash-head .dash-title {
+  height: 24px; font-size: 15px; font-weight: 600; line-height: 24px;
+  color: var(--text); display: inline-flex; align-items: center; gap: 8px;
+}
+
+.dash-head-actions #btn-add-projects {
+  display: inline-flex; align-items: center; gap: 6px; line-height: 1;
+  height: 28px; padding: 0 10px;
+}
+.dash-head-actions #btn-add-projects svg {
+  display: block; flex: none; width: 14px; height: 14px;
+}
+.dash-head-actions #btn-dash-more {
+  width: 28px; height: 28px; padding: 0; line-height: 0;
+}
+.dash-head-actions #btn-dash-more svg {
+  display: block; width: 16px; height: 16px;
+}
 /* 标题左侧产品图标:与文字垂直居中对齐(原 // 前缀由图标取代) */
-.dash-title-icon { width: 20px; height: 20px; border-radius: 4px; object-fit: contain; }
+.dash-title-icon {
+  display: block; flex: none; width: 24px !important; height: 24px !important;
+  max-width: 24px; max-height: 24px; border-radius: var(--radius); object-fit: contain;
+  align-self: center; vertical-align: middle;
+}
 .dash-cards { gap: 12px; }
 .kpi-card { min-height: 84px; padding: 12px 14px; align-items: flex-start; border-color: var(--border); background: var(--surface-3); }
 .kpi-card:hover { border-color: var(--border-strong); }
@@ -1180,10 +1311,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .dash-tab { border-radius: 0; border-color: transparent; padding-inline: 10px; font-family: var(--mono); font-size: 11px; }
 .dash-tab.active { background: transparent; border-color: var(--accent); color: var(--accent-bright); }
 /* background-color 用长写:background 简写会清掉全局 select 的自绘箭头背景图 */
-.dash-search, .dash-sort { border-radius: 0; background-color: var(--surface-3); border-color: var(--border); }
+.dash-search, .dash-sort { border-radius: var(--radius); background-color: var(--surface-3); border-color: var(--border); }
 .run-cards { gap: 12px; }
-.run-card { padding: 16px; border-color: var(--border); background: var(--surface-3); }
-.run-card:hover { background: var(--hover); border-color: var(--border-strong); }
+.run-card { padding: 16px; border-color: color-mix(in srgb, var(--border) 35%, transparent); background: var(--surface-3); }
+.run-card:hover { background: var(--hover); border-color: var(--border-soft); }
 .run-card-name { font-family: var(--mono); font-size: 12px; }
 .run-card-url { color: var(--blue); }
 .run-card-actions .mini-btn.halt { border-radius: 0; color: var(--green); background: transparent; border-color: var(--green); }
@@ -1197,9 +1328,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 
 .overlay { background: var(--shadow-deep); }
 .dialog { background: var(--surface-5); border-color: var(--border-strong); box-shadow: 0 16px 50px var(--black); }
-.settings-nav { background: var(--surface-2); border-right-color: var(--border); }
+.settings-dialog { box-shadow: 0 8px 24px var(--shadow); }
+.settings-nav { background: var(--surface-3); border-right-color: var(--border); }
 .settings-nav-item { border-radius: 0; }
-.settings-nav-item.active { background: var(--surface-active); color: var(--accent-bright); border-right-color: var(--accent); }
+.settings-nav-item.active { background: var(--accent-faint); color: var(--accent-bright); border-right-color: var(--accent); }
 .settings-dialog .dlg-actions { border-top-color: var(--border); }
 
 @media (max-width: 760px) {
@@ -1208,19 +1340,26 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   .dash-stats-row .dash-activity { min-height: 150px; }
 }
 
-/* 全局控件规则：所有操作控件统一直角，不允许局部组件恢复圆角。
-   数字角标(.num-badge)除外:小尺寸胶囊保留轻圆角,见基础层定义 */
+/* 全局控件规则：操作控件统一使用主题圆角,避免局部样式覆盖圆角系统。
+   数字角标(.num-badge)除外:小尺寸胶囊保留自身形状,见基础层定义 */
 button, input, textarea, select,
 .tool-btn, .icon-btn, .mini-btn, .run-chip, .branch-item, .repo-item,
 .dash-tab, .run-cmd-select, .card-more, .rollback, .settings-nav-item,
 .ig-check, .ch-badge, .st {
-  border-radius: 0 !important;
+  border-radius: var(--radius) !important;
 }
 
-/* 交互组件容器保持直角;Toast 除外(保留轻圆角,见 #toast 基础层定义) */
+/* 交互组件容器统一使用主题圆角;Toast 沿用独立的小圆角。 */
 .dialog, .settings-dialog, .branch-menu, .more-menu, .ctx-menu,
 .commit-pop, .ignore-options, .progress-track {
-  border-radius: 0 !important;
+  border-radius: var(--radius) !important;
+}
+
+/* 图片与数据卡片也统一使用主题圆角;圆点、加载动画与数字胶囊保留自身语义形状。 */
+.proj-icon, .proj-avatar, .repo-icon, .repo-avatar, .dash-title-icon,
+.run-card-ic .bar-ic img, .run-card-ic .repo-avatar,
+.kpi-card, .dash-activity, .dash-week, #diff-panel {
+  border-radius: var(--radius) !important;
 }
 
 /* 下拉控件统一隐藏原生外观;箭头由全局 select 规则的 SVG 背景自绘
@@ -1230,4 +1369,56 @@ select {
   appearance: none;
   -webkit-appearance: none;
   padding-right: 28px;
+}
+
+/* ===== AI 设置:本地 CLI 工具扫描列表 ===== */
+/* 字段标题行:左侧文字 + 右侧操作按钮(如「重新扫描」) */
+.field-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.field-row .mini-btn { flex: none; }
+#ai-api-fields, #ai-cli-fields { display: flex; flex-direction: column; gap: 12px; }
+.cli-select {
+  width: 100%; min-width: 0; height: 32px;
+}
+
+/* 首页品牌标题光学对齐:字形重心(含 y 下伸)仅比行盒中心低约 1px,图标微降 1px 即可;4px 会明显偏低 */
+#dashboard .dash-head > .dash-title {
+  display: inline-flex; align-items: center; height: 28px; line-height: 28px;
+}
+#dashboard .dash-head > .dash-title .dash-title-icon {
+  display: block; flex: 0 0 24px; width: 24px !important; height: 24px !important;
+  max-width: 24px; max-height: 24px; position: relative; top: 1px;
+  transform: none !important;
+}
+
+/* 外部侧栏与设置侧栏统一为直角菜单;选中态右侧贴齐容器边缘。 */
+#sidebar .repo-item, .settings-nav-item {
+  border-radius: 0 !important;
+}
+#sidebar:not(.collapsed) .repo-item.active {
+  margin-right: 0; border-radius: 0 !important; border-right-color: var(--accent);
+}
+
+/* 项目状态分组标题栏:悬停背景覆盖整行,右侧操作留出呼吸边距,标题本身保持直角。 */
+.section-head-row {
+  padding-right: 8px; border-radius: 0 !important;
+}
+.section-head-row .section-head {
+  border-radius: 0 !important;
+}
+.section-head-row:hover,
+.section-head-row:hover .section-head {
+  background: var(--hover);
+}
+
+.section-head-row > .sec-act {
+  width: 26px; height: 26px; padding: 0; border-radius: var(--radius) !important;
+}
+.section-head-row > .sec-act:hover {
+  background: var(--hover-strong); color: var(--text);
+}
+
+/* 右侧内容区的结构边框保持直角;标题操作按钮单独保留圆角。 */
+#content, #main-row, #main, #panel, #diff-panel, #dashboard, #run-panel,
+#panel .section, .dash-activity, .dash-week, .kpi-card, .run-card {
+  border-radius: 0 !important;
 }

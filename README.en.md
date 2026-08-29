@@ -18,12 +18,13 @@ So I built Hello Gitty: a lightweight, standalone companion focused on Git manag
 
 ## Highlights
 
-- **Built for AI development workflows** — auto-generates Conventional Commits messages and assists with merge conflict resolution
+- **Built for AI development workflows** — use an OpenAI-compatible API or a local AI CLI to generate Conventional Commits messages and assist with merge conflicts
 - **Unified multi-repo management** — project status, commit activity, and type distribution at a glance; switch and launch projects quickly
 - **Built-in dev server management** — detects launch commands and ports for common project types, so dev servers are managed inside the app
 - **Safe, controlled version operations** — browse local and remote history, and reset to any version after confirmation
 - **Lightweight and unobtrusive** — Tauri 2 + native frontend, ~5–8 MB installer, always-on-top window and system tray
 - **Privacy first** — Git operations run through your local git CLI; repository content stays on your machine by default
+- **Adaptable interface** — dark/light themes, a collapsible and resizable persistent sidebar, and a filter for repositories with uncommitted changes
 
 ## Features
 
@@ -33,6 +34,7 @@ So I built Hello Gitty: a lightweight, standalone companion focused on Git manag
 | Project sidebar | Open/clone/drag-and-drop repositories, auto-detected project icons and types, live status summaries (branch, ahead/behind, change counts) |
 | Workspace panel | Conflicts/staged/changes in three groups, inline diff preview, per-file stage/discard (two-step confirm), one-click ignore-rule setup with auto-generated `.gitignore` candidates |
 | Commit | Commits staged changes only → AI-generated commit message → commit; or stage everything in one click |
+| AI integrations | OpenAI-compatible APIs plus local CLIs including Claude Code, Codex CLI, Gemini CLI, Qwen Code, Ollama, Crush, and OpenCode |
 | Push / Pull | Handles branches without an upstream automatically; silent background fetch keeps status fresh |
 | AI conflict resolution | Conflict files are merged by AI (> 80 KB requires manual handling), then automatically `git add`-ed with the merge completed |
 | History timeline | Combined local + remote commits; reset to any historical version with a confirmation dialog |
@@ -45,12 +47,19 @@ So I built Hello Gitty: a lightweight, standalone companion focused on Git manag
 
 ### Download from Releases
 
-Go to [Releases](https://github.com/Bavoch/hello-gitty/releases) to download a published installer. Supported formats:
+Go to [Releases](https://github.com/Bavoch/hello-gitty/releases) to download the latest installer:
 
-- macOS: `.dmg`
-- Windows 10/11 (x64): `-setup.exe`
+| Platform | File |
+| --- | --- |
+| macOS Apple Silicon | `Hello.Gitty_<version>_aarch64.dmg` |
+| macOS Intel | `Hello.Gitty_<version>_x64.dmg` |
+| Windows 10/11 (x64) | `Hello.Gitty_<version>_x64-setup.exe` |
 
-Once installed, the app checks for updates on startup; you can also check manually under Settings → About & Update and download & install without leaving the app.
+Once installed, the app checks for updates on startup; you can also check manually under Settings → About & Update and download and install without leaving the app.
+
+> The macOS package is not Apple-notarized yet. On first launch, you may need to right-click the app and choose Open, or allow it under System Settings → Privacy & Security.
+>
+> The Windows installer does not yet use a commercial code-signing certificate. If SmartScreen appears, verify that the installer came from this repository before choosing Run anyway.
 
 ### Build from source
 
@@ -67,7 +76,7 @@ npm run build    # macOS: .dmg; Windows: NSIS setup.exe
 ## Getting Started
 
 1. Open the app → "Select Repository" to pick any local project folder, or clone from a remote URL
-2. "Settings" at the bottom of the sidebar → fill in an OpenAI-compatible API URL, key, and model; without a key you can still write commit messages manually
+2. "Settings" at the bottom of the sidebar → choose an OpenAI-compatible API or a local AI CLI; API mode needs an endpoint, key, and model, while CLI mode scans tools that are already installed and signed in
 3. Review conflicts, staged, and unstaged changes in the workspace; click a file to preview its diff
 4. Click "Commit" to generate or write a message, then "Push / Pull" to sync with the remote
 5. In the "Run" panel, pick a detected launch command, watch the logs, and start/stop dev servers
@@ -75,7 +84,7 @@ npm run build    # macOS: .dmg; Windows: NSIS setup.exe
 ## Privacy & Security
 
 - Git operations run through your local `git` CLI; repository content stays on your machine by default.
-- When using AI generation or conflict resolution, the relevant diffs, recent commit messages, or conflicted file contents are sent to the AI endpoint configured in Settings. Review that provider's privacy policy and data practices.
+- API mode sends relevant diffs, recent commit messages, or conflicted file contents to the configured AI endpoint. Local CLI mode passes the same type of content to the selected tool; whether it uploads data depends on that provider. Review the applicable privacy policy and data practices.
 - The AI API key is stored only in the local config; the GitHub token is used to create remote repositories and push — never commit or share it publicly.
 - Report security vulnerabilities privately via the [security policy](SECURITY.md); general issues and feature suggestions can go to [Issues](https://github.com/Bavoch/hello-gitty/issues) or email `hello@lumifold.top`.
 
@@ -83,7 +92,7 @@ npm run build    # macOS: .dmg; Windows: NSIS setup.exe
 
 - **Tauri 2** + Rust backend (system git CLI, ~5–8 MB installer)
 - Native HTML/CSS/JS frontend, no bundler
-- AI via OpenAI-compatible APIs (OpenAI / DeepSeek / local services all work); the key stays on your machine
+- AI through OpenAI-compatible APIs (OpenAI / DeepSeek / local services) or local CLIs (Claude Code / Codex / Gemini / Qwen / Ollama / Crush / OpenCode)
 
 ## Structure
 

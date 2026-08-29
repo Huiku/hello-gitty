@@ -312,10 +312,10 @@ function restoreHeatTip() {
     const count = parseInt(cell.dataset.count, 10);
     showHeatTip({ clientX: lastMouse.x, clientY: lastMouse.y },
       cell.dataset.date + " · " + (isNaN(count) ? 0 : count) + " 次提交");
-  } else if ((seg && seg.dataset.tip) || (item && item.dataset.tip)) {
-    showHeatTip({ clientX: lastMouse.x, clientY: lastMouse.y }, (seg || item).dataset.tip);
-  } else if (wcol && wcol.dataset.tip) {
-    showHeatTip({ clientX: lastMouse.x, clientY: lastMouse.y }, wcol.dataset.tip);
+  } else if ((seg && seg.dataset.chartTip) || (item && item.dataset.chartTip)) {
+    showHeatTip({ clientX: lastMouse.x, clientY: lastMouse.y }, (seg || item).dataset.chartTip);
+  } else if (wcol && wcol.dataset.chartTip) {
+    showHeatTip({ clientX: lastMouse.x, clientY: lastMouse.y }, wcol.dataset.chartTip);
   } else {
     hideHeatTip();
   }
@@ -425,7 +425,7 @@ function renderWeekBars() {
     label.textContent = names[r.day.getDay()];
     col.append(bar, label);
     const tip = (r.day.getMonth() + 1) + "月" + r.day.getDate() + "日 · +" + r.add + " / -" + r.del + " 行";
-    col.dataset.tip = tip;
+    col.dataset.chartTip = tip;
     col.addEventListener("mouseenter", (e) => showHeatTip(e, tip));
     col.addEventListener("mousemove", (e) => moveHeatTip(e));
     col.addEventListener("mouseleave", hideHeatTip);
@@ -684,27 +684,27 @@ function renderCategoryDonut() {
   for (const r of rows) {
     const seg = document.createElement("div");
     seg.className = "cat-stack-seg";
+    const tipText = r.label + " · " + r.n + " 个项目 · " + Math.round((r.n / total) * 100) + "%";
+    seg.dataset.chartTip = tipText;
+    seg.addEventListener("mouseenter", (e) => showHeatTip(e, tipText));
+    seg.addEventListener("mousemove", moveHeatTip);
+    seg.addEventListener("mouseleave", hideHeatTip);
     seg.style.background = colorOf(r);
     seg.style.width = Math.round((r.n / total) * 100) + "%";
-    // 悬停即时显示分类信息(复用热力图的自定义 tooltip)
-    const tipText = r.label + " · " + r.n + " 个项目 · " + Math.round((r.n / total) * 100) + "%";
-    seg.dataset.tip = tipText; // 重渲染后恢复 tooltip 用
-    seg.addEventListener("mouseenter", (e) => showHeatTip(e, tipText));
-    seg.addEventListener("mousemove", (e) => moveHeatTip(e));
-    seg.addEventListener("mouseleave", hideHeatTip);
     bar.appendChild(seg);
   }
   wrap.appendChild(bar);
-  // 下方图例:色块 + 名称 + 数量(数字与热力图等一致的视觉层级)
+  // 下方图例:色块 + 名称 + 数量。与热力图共用自定义悬停提示,
+  // 避免原生 title 延迟显示且无法统一定位。
   const legend = document.createElement("div");
   legend.className = "cat-stack-legend";
   for (const r of rows) {
     const item = document.createElement("div");
     item.className = "cat-stack-item";
     const tipText = r.label + " · " + r.n + " 个项目 · " + Math.round((r.n / total) * 100) + "%";
-    item.dataset.tip = tipText;
+    item.dataset.chartTip = tipText;
     item.addEventListener("mouseenter", (e) => showHeatTip(e, tipText));
-    item.addEventListener("mousemove", (e) => moveHeatTip(e));
+    item.addEventListener("mousemove", moveHeatTip);
     item.addEventListener("mouseleave", hideHeatTip);
     const dot = document.createElement("span");
     dot.className = "cat-dot";
@@ -720,7 +720,6 @@ function renderCategoryDonut() {
   }
   wrap.appendChild(legend);
   box.appendChild(wrap);
-  restoreHeatTip(); // 重渲染后恢复 tooltip(鼠标停在色段/图例上时重新显示)
 }
 
 /* ===== KPI 卡片 ===== */
