@@ -4,6 +4,8 @@
 
 # Hello Gitty 🐱
 
+> 本 fork 新增右上角分支搜索（本地/远程、忽略大小写、方向键与回车切换）。安装包请从 [Huiku/hello-gitty Releases](https://github.com/Huiku/hello-gitty/releases) 下载，或在 Actions 中下载构建产物。此版本暂不提供应用内自动更新。详见 [构建说明](docs/fork-build.md)。
+
 [![Windows CI](https://github.com/Bavoch/hello-gitty/actions/workflows/windows.yml/badge.svg)](https://github.com/Bavoch/hello-gitty/actions/workflows/windows.yml)
 [![Release](https://img.shields.io/github/v/release/Bavoch/hello-gitty)](https://github.com/Bavoch/hello-gitty/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

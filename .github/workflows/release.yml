@@ -1,174 +1,82 @@
-name: Release
+name: Build installers
 
 on:
   push:
+    branches: [main, 'feature/**']
     tags: ['v*']
+  pull_request:
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: installers-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Create draft release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          notes=".github/RELEASE_NOTES_${GITHUB_REF_NAME}.md"
-          if [ -f "$notes" ]; then
-            gh release create "$GITHUB_REF_NAME" --draft --notes-file "$notes" --title "Hello Gitty $GITHUB_REF_NAME"
-          else
-            gh release create "$GITHUB_REF_NAME" --draft --generate-notes --title "Hello Gitty $GITHUB_REF_NAME"
-          fi
-
-  build-macos:
-    needs: create-release
-    runs-on: macos-15-intel
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - os: macos-15-intel
+            platform: macos-intel
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+          - os: macos-15
+            platform: macos-apple-silicon
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Install icon tooling
-        run: |
-          python3 -m venv .venv
-          .venv/bin/python -m pip install pillow numpy opencv-python-headless
-          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Use GitHub crates registry
+        run: python -m pip install pillow numpy opencv-python-headless
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Use crates.io on GitHub runners
+        shell: bash
         run: rm -f src-tauri/.cargo/config.toml
-
-      - name: Build dmg
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        # dmg 不在 updater 支持的目标里,须同时构建 app 目标才会产出 .app.tar.gz 与签名
-        run: npx tauri build --bundles app,dmg
-
-      - name: Name Intel updater artifacts
-        run: |
-          mv "src-tauri/target/release/bundle/macos/Hello Gitty.app.tar.gz" src-tauri/target/release/bundle/macos/Hello.Gitty_x64.app.tar.gz
-          mv "src-tauri/target/release/bundle/macos/Hello Gitty.app.tar.gz.sig" src-tauri/target/release/bundle/macos/Hello.Gitty_x64.app.tar.gz.sig
-
-      - name: Validate Intel packages
-        run: |
-          codesign --verify --deep --strict --verbose=2 "src-tauri/target/release/bundle/macos/Hello Gitty.app"
-          hdiutil verify src-tauri/target/release/bundle/dmg/*.dmg
-          tar -tzf src-tauri/target/release/bundle/macos/Hello.Gitty_x64.app.tar.gz >/dev/null
-
-      - name: Upload dmg to release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release upload "$GITHUB_REF_NAME"
-          src-tauri/target/release/bundle/dmg/*.dmg
-          src-tauri/target/release/bundle/macos/Hello.Gitty_x64.app.tar.gz
-          src-tauri/target/release/bundle/macos/Hello.Gitty_x64.app.tar.gz.sig
-          --clobber
-
-  build-macos-arm:
-    needs: create-release
-    runs-on: macos-14
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
+      - uses: Swatinem/rust-cache@v2
         with:
-          node-version: 22
-          cache: npm
-
-      - name: Prepare Rust target
-        run: rustup target add aarch64-apple-darwin
-
-      - name: Install icon tooling
+          workspaces: src-tauri -> target
+          key: ${{ matrix.target }}
+      - run: npm ci
+      - name: Check frontend syntax and branch search
+        shell: bash
         run: |
-          python3 -m venv .venv
-          .venv/bin/python -m pip install pillow numpy opencv-python-headless
-          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Use GitHub crates registry
-        run: rm -f src-tauri/.cargo/config.toml
-
-      - name: Build Apple Silicon dmg
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build --target aarch64-apple-darwin --bundles app,dmg
-
-      - name: Name Apple Silicon updater artifacts
+          for file in src/main.js src/js/*.js scripts/*.mjs; do node --check "$file"; done
+          npm test
+      - name: Test Rust backend
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked --target ${{ matrix.target }}
+      - name: Build installer
+        run: npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Validate macOS packages
+        if: runner.os == 'macOS'
+        shell: bash
         run: |
-          mv "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello Gitty.app.tar.gz" src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello.Gitty_aarch64.app.tar.gz
-          mv "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello Gitty.app.tar.gz.sig" src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello.Gitty_aarch64.app.tar.gz.sig
-
-      - name: Validate Apple Silicon packages
-        run: |
-          codesign --verify --deep --strict --verbose=2 "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello Gitty.app"
-          hdiutil verify src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-          tar -tzf src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello.Gitty_aarch64.app.tar.gz >/dev/null
-
-      - name: Upload Apple Silicon dmg
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release upload "$GITHUB_REF_NAME"
-          src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-          src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello.Gitty_aarch64.app.tar.gz
-          src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Hello.Gitty_aarch64.app.tar.gz.sig
-          --clobber
-
-  build-windows:
-    needs: create-release
-    runs-on: windows-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install icon tooling
+          codesign --verify --deep --strict --verbose=2 "src-tauri/target/${{ matrix.target }}/release/bundle/macos/Hello Gitty.app"
+          hdiutil verify src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+      - name: Test installer lifecycle
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          python -m venv .venv
-          .\.venv\Scripts\python -m pip install pillow
-          "$env:GITHUB_WORKSPACE\.venv\Scripts" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          "PYTHONPATH=$env:GITHUB_WORKSPACE\.venv\Lib\site-packages" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Use GitHub crates registry
-        shell: pwsh
-        run: Remove-Item -Force src-tauri/.cargo/config.toml
-
-      - name: Build NSIS installer
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npx tauri build --bundles nsis
-
-      - name: Test release installer lifecycle
-        shell: pwsh
-        run: |
-          $setup = (Resolve-Path "src-tauri/target/release/bundle/nsis/*-setup.exe").Path
-          $installDir = Join-Path $env:RUNNER_TEMP "hello-gitty-release"
+          $setup = Resolve-Path "src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe"
+          $installDir = Join-Path $env:RUNNER_TEMP "hello-gitty-installed"
           $installer = Start-Process -FilePath $setup -ArgumentList @("/S", "/D=$installDir") -Wait -PassThru
           if ($installer.ExitCode -ne 0) {
             throw "Installer exited with code $($installer.ExitCode)"
@@ -203,53 +111,30 @@ jobs:
             throw "Executable remains after uninstall"
           }
 
-      - name: Upload installer to release
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          $files = @()
-          $files += (Resolve-Path "src-tauri/target/release/bundle/nsis/*-setup.exe").Path
-          $files += (Resolve-Path "src-tauri/target/release/bundle/nsis/*-setup.exe.sig").Path
-          gh release upload "$env:TAG" $files --clobber
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hello-gitty-${{ matrix.platform }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 30
 
-  publish-release:
-    needs: [build-macos, build-macos-arm, build-windows]
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
+      - uses: actions/download-artifact@v4
         with:
-          node-version: 22
-
-      # 汇总两个平台的更新签名,生成 updater 端点的 latest.json 一并挂到 Release
-      - name: Generate update manifest
+          pattern: hello-gitty-*
+          path: installers
+          merge-multiple: true
+      - name: Publish installers
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir sigs
-          gh release download "$GITHUB_REF_NAME" --pattern "*.sig" --dir sigs
-          gh release view "$GITHUB_REF_NAME" --json body -q .body > release-notes.md || true
-          node scripts/release_manifest.mjs "$GITHUB_REF_NAME" "Bavoch/hello-gitty" sigs latest.json release-notes.md
-          gh release upload "$GITHUB_REF_NAME" latest.json --clobber
-
-      # .sig 的内容已经写入 latest.json,无需作为面向用户的 Release 资产展示。
-      # 删除前已完成清单生成,不会影响 Tauri updater 的签名校验。
-      - name: Remove technical signature assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mapfile -t signature_assets < <(
-            gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name | select(endswith(".sig"))'
-          )
-          for asset in "${signature_assets[@]}"; do
-            gh release delete-asset "$GITHUB_REF_NAME" "$asset" --yes
-          done
-
-      - name: Publish release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release edit "$GITHUB_REF_NAME" --draft=false
+          gh release create "$GITHUB_REF_NAME" installers/* --title "Hello Gitty $GITHUB_REF_NAME" --generate-notes

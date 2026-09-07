@@ -376,7 +376,7 @@ select option { background: var(--input-bg); color: var(--text); }
 .branch-menu {
   position: absolute; right: 0; top: calc(100% + 4px); z-index: 50;
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
-  min-width: 220px; max-width: 340px; max-height: 340px; overflow-y: auto;
+  min-width: 220px; max-width: 340px; max-height: 340px; overflow: hidden;
   padding: 6px; box-shadow: 0 4px 16px var(--shadow);
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -1422,3 +1422,8 @@ select {
 #panel .section, .dash-activity, .dash-week, .kpi-card, .run-card {
   border-radius: 0 !important;
 }
+
+/* Keep branch search visible while a long result list scrolls. */
+.branch-search { flex: none; width: 100%; min-width: 0; box-sizing: border-box; }
+.branch-results { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.branch-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--hover-strong); }

@@ -29,9 +29,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU4OUNCNTQxNEJFNEEyOTgKUldTWW91UkxRYldjV0ZzRXBQTlg5aHloSHd4aFdiY1MrUkErZjVWL1lMcm1hbWJEVnhHdnFzQ2wK",
-      "endpoints": [
-        "https://github.com/Bavoch/hello-gitty/releases/latest/download/latest.json"
-      ],
+      "endpoints": [],
       "windows": {
         "installMode": "passive"
       }
@@ -39,9 +37,9 @@
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "publisher": "Bavoch",
-    "homepage": "https://github.com/Bavoch/hello-gitty",
+    "homepage": "https://github.com/Huiku/hello-gitty",
     "copyright": "Copyright © Bavoch",
     "license": "MIT",
     "category": "DeveloperTool",

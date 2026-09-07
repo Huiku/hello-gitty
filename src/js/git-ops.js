@@ -360,7 +360,7 @@ export function invalidateBranchCache() {
   branchCache = null;
 }
 
-function renderBranchGroups(box, b) {
+function renderBranchGroups(box, b, query = "") {
   box.innerHTML = "";
   const group = (title, items, isRemote) => {
     const g = document.createElement("div");
@@ -389,6 +389,8 @@ function renderBranchGroups(box, b) {
       const label = document.createElement("span");
       label.className = "branch-label";
       label.textContent = isRemote ? name.replace(/^origin\//, "") : name;
+      item.title = name;
+      item.type = "button";
       item.append(mark, label);
       item.addEventListener("click", () => switchBranch(name));
       g.appendChild(item);
@@ -396,30 +398,80 @@ function renderBranchGroups(box, b) {
     return g;
   };
 
-  box.append(group("本地", b.locals, false));
-  box.append(group("远程", b.remotes, true));
-  box.classList.remove("hidden");
+  const needle = query.trim().toLocaleLowerCase();
+  const locals = b.locals.filter((name) => name.toLocaleLowerCase().includes(needle));
+  const remotes = b.remotes.filter((name) => name.toLocaleLowerCase().includes(needle));
+  if (needle && !locals.length && !remotes.length) {
+    const empty = document.createElement("div");
+    empty.className = "branch-none";
+    empty.setAttribute("role", "status");
+    empty.textContent = "没有匹配的分支";
+    box.append(empty);
+    return;
+  }
+  if (!needle || locals.length) box.append(group("本地", locals, false));
+  if (!needle || remotes.length) box.append(group("远程", remotes, true));
 }
+
+let branchRequest = 0;
 
 async function openBranchMenu() {
   if (!repo) return;
+  const requestedRepo = repo;
+  const request = ++branchRequest;
   const box = $("branch-menu");
-  // 已有本仓库缓存:直接渲染,不再显示加载态
-  if (branchCache && branchCache.repo === repo) {
-    renderBranchGroups(box, branchCache.data);
-    return;
-  }
-  // 首次查询:显示加载占位(居中),完成后缓存
-  box.innerHTML = '<div class="branch-loading">加载中…</div>';
+  box.innerHTML = "";
+  const search = document.createElement("input");
+  search.type = "search";
+  search.className = "branch-search";
+  search.placeholder = "搜索本地和远程分支…";
+  search.setAttribute("aria-label", "搜索分支");
+  search.autocomplete = "off";
+  search.spellcheck = false;
+  const results = document.createElement("div");
+  results.className = "branch-results";
+  results.innerHTML = '<div class="branch-loading">加载中…</div>';
+  box.append(search, results);
   box.classList.remove("hidden");
-  const b = await invoke("git_branches", { repo }).catch(() => null);
-  if (box.classList.contains("hidden")) return; // 等待期间已被关闭
-  if (!b) {
-    box.innerHTML = '<div class="branch-loading">加载失败</div>';
+  search.focus();
+  let branches = null;
+  search.addEventListener("input", () => {
+    if (branches) renderBranchGroups(results, branches, search.value);
+  });
+  box.onkeydown = (event) => {
+    if (event.isComposing) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      box.classList.add("hidden");
+      $("btn-branch").focus();
+      return;
+    }
+    const items = [...results.querySelectorAll(".branch-item")];
+    const index = items.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!items.length) return;
+      const next = event.key === "ArrowDown"
+        ? (index + 1) % items.length
+        : (index <= 0 ? items.length - 1 : index - 1);
+      items[next].focus();
+    } else if (event.key === "Enter" && event.target === search) {
+      event.preventDefault();
+      items[0]?.click();
+    }
+  };
+  branches = branchCache?.repo === requestedRepo
+    ? branchCache.data
+    : await invoke("git_branches", { repo: requestedRepo }).catch(() => null);
+  // Ignore requests superseded by a different repository or a reopened menu.
+  if (request !== branchRequest || repo !== requestedRepo || box.classList.contains("hidden")) return;
+  if (!branches) {
+    results.innerHTML = '<div class="branch-loading" role="status">加载失败，请关闭后重试</div>';
     return;
   }
-  branchCache = { repo, data: b };
-  renderBranchGroups(box, b);
+  branchCache = { repo: requestedRepo, data: branches };
+  renderBranchGroups(results, branches, search.value);
 }
 
 async function switchBranch(name) {
