@@ -6,6 +6,13 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: Optional existing build run ID to retry publishing without rebuilding
+        required: false
+      tag:
+        description: Existing tag matching the selected build run (required with run_id)
+        required: false
 
 permissions:
   contents: read
@@ -16,6 +23,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_dispatch' || inputs.run_id == ''
     strategy:
       fail-fast: false
       matrix:
@@ -121,20 +129,36 @@ jobs:
           retention-days: 30
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: always() && ((needs.build.result == 'success' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.run_id != ''))
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify source commit when retrying publication
+        if: inputs.run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.run_id }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$RELEASE_TAG" == v* ]]
+          commit=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" --jq .head_sha)
+          test "$commit" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
       - uses: actions/download-artifact@v4
         with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run_id || github.run_id }}
           pattern: hello-gitty-*
           path: installers
           merge-multiple: true
       - name: Publish installers
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" installers/* --title "Hello Gitty $GITHUB_REF_NAME" --generate-notes
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: bash scripts/publish_installers.sh "$RELEASE_TAG" installers
